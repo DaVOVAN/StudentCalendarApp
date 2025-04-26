@@ -1,20 +1,28 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { CalendarProvider } from './src/contexts/CalendarContext';
+import HomeScreen from './src/screens/HomeScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
+import { RootStackParamList } from './src/types/navigation'; // Import!
 
-export default function App() {
+
+const Stack = createStackNavigator<RootStackParamList>();
+
+const App: React.FC = () => {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <ThemeProvider>
+      <CalendarProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Home">
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Calendar" component={CalendarScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </CalendarProvider>
+    </ThemeProvider>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default App;
