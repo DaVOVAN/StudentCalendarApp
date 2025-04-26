@@ -1,3 +1,4 @@
+// src/screens/HomeScreen.tsx
 import React, { useState, useCallback } from 'react';
 import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';

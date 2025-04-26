@@ -2,5 +2,7 @@
 export type RootStackParamList = {
     Home: undefined;
     Calendar: { calendarId: string };
-    EventList: { calendarId: string; selectedDate: string };  // added EventList
+    EventList: { calendarId: string; selectedDate: string };
+    ViewEvent: { calendarId: string; eventId: string };
+    AddEvent: { calendarId: string; selectedDate: string };
   };

@@ -7,6 +7,8 @@ import { CalendarProvider } from './src/contexts/CalendarContext';
 import HomeScreen from './src/screens/HomeScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import EventListScreen from './src/screens/EventListScreen';
+import ViewEventScreen from './src/screens/ViewEventScreen';
+import AddEventScreen from './src/screens/AddEventScreen';
 import { RootStackParamList } from './src/types/navigation';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -20,6 +22,8 @@ const App: React.FC = () => {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Calendar" component={CalendarScreen} />
             <Stack.Screen name="EventList" component={EventListScreen} />
+            <Stack.Screen name="ViewEvent" component={ViewEventScreen} />
+            <Stack.Screen name="AddEvent" component={AddEventScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </CalendarProvider>

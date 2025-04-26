@@ -1,46 +1,41 @@
 // src/screens/EventListScreen.tsx
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, FlatList } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Button } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { format } from 'date-fns';
-import { Event } from '../types/types';  // Import the Event type
+import { Event } from '../types/types';
+import { StackNavigationProp } from '@react-navigation/stack'; // Import StackNavigationProp
 
 interface EventListScreenProps {
   route: RouteProp<RootStackParamList, 'EventList'>;
+  navigation: StackNavigationProp<RootStackParamList, 'EventList'>; // Add navigation prop
 }
 
-const EventListScreen: React.FC<EventListScreenProps> = ({ route }) => {
+const EventListScreen: React.FC<EventListScreenProps> = ({ route, navigation }) => { // Get navigation from props
   const { calendarId, selectedDate } = route.params;
-  const { calendars, addEvent } = useCalendar();
+  const { calendars } = useCalendar();
   const { theme, colors } = useTheme();
 
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventDescription, setEventDescription] = useState('');
-
   const calendar = calendars.find(c => c.id === calendarId);
-  const eventsForDate = calendar?.events.filter(event => format(new Date(event.date), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')) || [];
+  const eventsForDate = calendar?.events.filter(event => format(new Date(event.endDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')) || [];
 
   const handleAddEvent = useCallback(() => {
-    if (eventTitle) {
-      addEvent(calendarId, {
-        date: selectedDate,
-        title: eventTitle,
-        description: eventDescription,
-      });
-      setEventTitle('');
-      setEventDescription('');
-    }
-  }, [selectedDate, eventTitle, eventDescription, calendarId, addEvent]);
+    navigation.navigate('AddEvent', { calendarId: calendarId, selectedDate: selectedDate });
+  }, [navigation, calendarId, selectedDate]);
 
-  const renderItem = useCallback(({ item }: { item: Event }) => (  // Specify the type of item
-    <View style={styles.eventItem}>
+  const handleViewEvent = useCallback((eventId: string) => {
+    navigation.navigate('ViewEvent', { calendarId: calendarId, eventId: eventId });
+  }, [navigation, calendarId]);
+
+  const renderItem = useCallback(({ item }: { item: Event }) => (
+    <TouchableOpacity style={styles.eventItem} onPress={() => handleViewEvent(item.id)}>
       <Text style={styles.eventTitle}>{item.title}</Text>
       <Text>{item.description}</Text>
-    </View>
-  ), []);
+    </TouchableOpacity>
+  ), [handleViewEvent]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.primary }]}>
@@ -52,20 +47,6 @@ const EventListScreen: React.FC<EventListScreenProps> = ({ route }) => {
         keyExtractor={(item) => item.id}
       />
 
-      <TextInput
-        placeholder="Title"
-        placeholderTextColor={colors.text}
-        value={eventTitle}
-        onChangeText={setEventTitle}
-        style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-      />
-      <TextInput
-        placeholder="Description"
-        placeholderTextColor={colors.text}
-        value={eventDescription}
-        onChangeText={setEventDescription}
-        style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-      />
       <Button title="Add Event" onPress={handleAddEvent} />
     </View>
   );
@@ -90,12 +71,6 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    marginVertical: 10,
   },
 });
 

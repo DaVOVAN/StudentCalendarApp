@@ -1,4 +1,4 @@
-//src/types/types.ts
+// src/types/types.ts
 export interface Calendar {
     id: string;
     name: string;
@@ -8,9 +8,11 @@ export interface Calendar {
   
   export interface Event {
     id: string;
-    date: string;
     title: string;
     description: string;
+    startDate: string; // ISO String
+    endDate: string;   // ISO String
+    links: string[];
   }
   
   export type Theme = 'light' | 'dark' | 'pink';
