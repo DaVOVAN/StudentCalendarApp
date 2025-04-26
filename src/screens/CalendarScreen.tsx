@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, Button, StyleSheet } from 'react-native';
+// src/screens/CalendarScreen.tsx
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { getThemeColors } from '../utils/theme';
@@ -7,12 +8,14 @@ import { globalStyles } from '../styles/globalStyles';
 import { format, getDaysInMonth, startOfMonth } from 'date-fns';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 interface CalendarScreenProps {
   route: RouteProp<RootStackParamList, 'Calendar'>;
+  navigation: StackNavigationProp<RootStackParamList, 'Calendar'>;
 }
 
-const CalendarDay: React.FC<{ date: Date; onDatePress: (date: Date) => void }> = ({ date, onDatePress }) => {
+const CalendarDay: React.FC<{ date: Date; onDatePress: (date: Date) => void, hasEvent: boolean }> = ({ date, onDatePress, hasEvent }) => {
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
 
@@ -22,21 +25,18 @@ const CalendarDay: React.FC<{ date: Date; onDatePress: (date: Date) => void }> =
       onPress={() => onDatePress(date)}
     >
       <Text style={{ color: colors.text }}>{date.getDate()}</Text>
+      {hasEvent && <View style={styles.eventIndicator} />}
     </TouchableOpacity>
   );
 };
 
-
-const CalendarScreen: React.FC<CalendarScreenProps> = ({ route }) => {
+const CalendarScreen: React.FC<CalendarScreenProps> = ({ route, navigation }) => {
   const { calendarId } = route.params;
-  const { calendars, addEvent } = useCalendar();
+  const { calendars } = useCalendar();
   const { theme } = useTheme();
   const colors = getThemeColors(theme);
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventDescription, setEventDescription] = useState('');
 
   const currentDate = new Date();
   const daysInMonth = getDaysInMonth(currentDate);
@@ -44,80 +44,70 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ route }) => {
 
   const calendar = calendars.find(c => c.id === calendarId);
 
+  const eventsForCalendar = calendar?.events || [];
+
+  const eventsByDate = useMemo(() => {
+    const groupedEvents: { [date: string]: any[] } = {};
+    eventsForCalendar.forEach(event => {
+      const date = format(new Date(event.date), 'yyyy-MM-dd');
+      if (!groupedEvents[date]) {
+        groupedEvents[date] = [];
+      }
+      groupedEvents[date].push(event);
+    });
+    return groupedEvents;
+  }, [eventsForCalendar]);
+
   const handleDatePress = useCallback((date: Date) => {
     setSelectedDate(date);
-    setIsModalVisible(true);
-  }, []);
-
-  const handleAddEvent = useCallback(() => {
-    if (selectedDate && eventTitle) {
-      addEvent(calendarId, {
-        date: selectedDate.toISOString(),
-        title: eventTitle,
-        description: eventDescription,
-      });
-      setIsModalVisible(false);
-      setEventTitle('');
-      setEventDescription('');
-    }
-  }, [selectedDate, eventTitle, eventDescription, calendarId, addEvent]);
+    navigation.navigate('EventList', { calendarId: calendarId, selectedDate: date.toISOString() });
+  }, [navigation, calendarId]);
 
   const renderDay = useCallback((index: number) => {
     const date = new Date(firstDayOfMonth);
     date.setDate(index + 1);
-    return <CalendarDay key={index} date={date} onDatePress={handleDatePress} />;
-}, [firstDayOfMonth, handleDatePress]);
+    const dateString = format(date, 'yyyy-MM-dd');
+    const hasEvent = !!eventsByDate[dateString];
 
+    return <CalendarDay key={index} date={date} onDatePress={handleDatePress} hasEvent={hasEvent} />;
+  }, [firstDayOfMonth, handleDatePress, eventsByDate]);
 
-return (
-  <View style={[globalStyles.container, { backgroundColor: colors.primary }]}>
-    <Text style={[globalStyles.title, { color: colors.text }]}>
-      {calendar?.name} Calendar
-    </Text>
+  return (
+    <View style={[globalStyles.container, { backgroundColor: colors.primary }]}>
+      <Text style={[globalStyles.title, { color: colors.text }]}>
+        {calendar?.name}
+      </Text>
 
-    <View style={styles.grid}>
-      {Array.from({ length: daysInMonth }).map((_, index) => renderDay(index))}
-    </View>
-
-    <Modal visible={isModalVisible} animationType="slide">
-      <View style={[globalStyles.container, { backgroundColor: colors.primary }]}>
-        <Text style={{ color: colors.text }}>New Event</Text>
-        <TextInput
-          placeholder="Title"
-          placeholderTextColor={colors.text}
-          value={eventTitle}
-          onChangeText={setEventTitle}
-          style={[globalStyles.input, { color: colors.text, borderColor: colors.text }]}
-        />
-        <TextInput
-          placeholder="Description"
-          placeholderTextColor={colors.text}
-          value={eventDescription}
-          onChangeText={setEventDescription}
-          style={[globalStyles.input, { color: colors.text, borderColor: colors.text }]}
-        />
-        <Button title="Add Event" onPress={handleAddEvent} />
-        <Button title="Cancel" onPress={() => setIsModalVisible(false)} />
+      <View style={styles.grid}>
+        {Array.from({ length: daysInMonth }).map((_, index) => renderDay(index))}
       </View>
-    </Modal>
-  </View>
-);
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-grid: {
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  justifyContent: 'center',
-},
-dayCell: {
-  width: 50,
-  height: 50,
-  margin: 5,
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderRadius: 8,
-},
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  dayCell: {
+    width: 50,
+    height: 50,
+    margin: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  eventIndicator: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'red', // Adjust color as needed
+    position: 'absolute',
+    top: 5,
+    right: 5,
+  },
 });
 
 export default CalendarScreen;
