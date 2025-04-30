@@ -158,15 +158,18 @@ const styles = StyleSheet.create({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
     },
     dayCell: {
-        width: 50,
-        height: 50,
-        margin: 5,
+        width: '12%',
+        height: '20%',
+        aspectRatio: 1,
+        margin: 1,
         justifyContent: 'center',
         alignItems: 'center',
         borderRadius: 8,
+        elevation: 2,
     },
     eventIndicator: {
         width: 5,
@@ -197,11 +200,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 10,
+        padding: 15,
+        marginVertical: 10,
+        borderRadius: 10,
+        marginHorizontal: 10,
     },
     emergencyDay: {
-        backgroundColor: 'red', // Example emergency style
+        borderWidth: 2,
+        borderColor: 'red',
     },
 });
 

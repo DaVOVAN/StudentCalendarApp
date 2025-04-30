@@ -13,6 +13,7 @@
 
     const ThemeContext = createContext<ThemeContextType>({} as ThemeContextType);
 
+
     export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const [theme, setTheme] = useState<Theme>('light');
       const styles = getThemeStyles(theme); // Получаем стили для текущей темы
