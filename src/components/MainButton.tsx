@@ -1,21 +1,23 @@
 // src/components/MainButton.tsx
 import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface MainButtonProps {
     title: string;
     onPress: () => void;
-    icon?: keyof typeof MaterialIcons.glyphMap; // Автодополнение имён иконок
+    icon?: keyof typeof MaterialIcons.glyphMap;
+    style?: StyleProp<ViewStyle>;
+    textStyle?: StyleProp<TextStyle>;
 }
 
-const MainButton: React.FC<MainButtonProps> = ({ title, onPress, icon }) => {
+const MainButton: React.FC<MainButtonProps> = ({ title, onPress, icon, style, textStyle }) => {
     const { styles, colors } = useTheme();
 
     return (
         <TouchableOpacity
-            style={[styles.button, { flexDirection: 'row', alignItems: 'center' }]}
+            style={[styles.button, style]}
             onPress={onPress}
         >
             {icon && (
@@ -26,7 +28,7 @@ const MainButton: React.FC<MainButtonProps> = ({ title, onPress, icon }) => {
                     style={{ marginRight: 8 }}
                 />
             )}
-            <Text style={styles.buttonText}>{title}</Text>
+            <Text style={[styles.buttonText, textStyle]}>{title}</Text>
         </TouchableOpacity>
     );
 };

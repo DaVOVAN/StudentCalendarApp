@@ -1,44 +1,49 @@
 // src/screens/AddEventScreen.tsx
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Switch } from 'react-native';
+import { 
+  View, 
+  TextInput, 
+  StyleSheet, 
+  Switch, 
+  Text, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform 
+} from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { RouteProp, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { EventType } from '../types/types';
-import { Picker } from '@react-native-picker/picker'; // Import Picker
-// yarn add @react-native-picker/picker
+import { Picker } from '@react-native-picker/picker';
+import MainButton from '../components/MainButton';
 
 interface AddEventScreenProps {
     route: RouteProp<RootStackParamList, 'AddEvent'>;
 }
 
 const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
+    const { colors, styles } = useTheme();
     const { calendarId, selectedDate } = route.params;
     const { addEvent } = useCalendar();
-    const { theme, colors } = useTheme();
     const navigation = useNavigation();
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [startDate, setStartDate] = useState(selectedDate);
-    const [endDate, setEndDate] = useState(selectedDate);
-    const [links, setLinks] = useState(['']);
     const [eventType, setEventType] = useState<EventType>('laboratory');
     const [location, setLocation] = useState('');
     const [isEmergency, setIsEmergency] = useState(false);
+    const [links, setLinks] = useState(['']);
 
-    const eventTypes: { label: string; value: EventType }[] = [
-        { label: 'Laboratory Work', value: 'laboratory' },
+    const eventTypes = [
+        { label: 'Lab Work', value: 'laboratory' },
         { label: 'Checkpoint', value: 'checkpoint' },
-        { label: 'Final Assessment', value: 'final' },
-        { label: 'Meeting with Teacher', value: 'meeting_teacher' },
-        { label: 'Meeting with Tutor', value: 'meeting_tutor' },
-        { label: 'Important Deadline', value: 'deadline' },
+        { label: 'Final Exam', value: 'final' },
+        { label: 'Teacher Meeting', value: 'meeting_teacher' },
+        { label: 'Tutor Meeting', value: 'meeting_tutor' },
+        { label: 'Deadline', value: 'deadline' },
         { label: 'Commission', value: 'commission' },
     ];
-
-    const showLocationField = eventType === 'meeting_teacher' || eventType === 'meeting_tutor' || eventType === 'checkpoint' || eventType === 'final' || eventType === 'commission';
 
     const handleAddLink = useCallback(() => {
         setLinks([...links, '']);
@@ -52,124 +57,186 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
 
     const handleAddEvent = useCallback(() => {
         const eventData = {
-            title: title,
-            description: description,
-            startDate: startDate,
-            endDate: endDate,
-            links: links,
-            eventType: eventType,
-            ...(showLocationField ? { location: location } : {}), // Conditionally add location
-            isEmergency: isEmergency, // Add isEmergency
+            title,
+            description,
+            startDate: selectedDate,
+            endDate: selectedDate,
+            links: links.filter(link => link.trim()),
+            eventType,
+            location: location || undefined,
+            isEmergency,
         };
 
         addEvent(calendarId, eventData);
         navigation.goBack();
-    }, [calendarId, title, description, startDate, endDate, links, eventType, location, isEmergency, addEvent, navigation, showLocationField]);
+    }, [calendarId, title, description, links, eventType, location, isEmergency, addEvent, navigation]);
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.title, { color: colors.text }]}>Add Event</Text>
-
-            <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-                placeholder="Title"
-                placeholderTextColor={colors.text}
-                value={title}
-                onChangeText={setTitle}
-            />
-            <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-                placeholder="Description"
-                placeholderTextColor={colors.text}
-                value={description}
-                onChangeText={setDescription}
-            />
-            <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-                placeholder="Start Date"
-                placeholderTextColor={colors.text}
-                value={startDate}
-                onChangeText={setStartDate}
-            />
-            <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-                placeholder="End Date"
-                placeholderTextColor={colors.text}
-                value={endDate}
-                onChangeText={setEndDate}
-            />
-
-            <Text style={{ color: colors.text }}>Event Type:</Text>
-            <Picker
-                style={{ color: colors.text, width: '100%' }}
-                selectedValue={eventType}
-                onValueChange={(itemValue: EventType) => setEventType(itemValue)}
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <ScrollView 
+                contentContainerStyle={[localStyles.container, { backgroundColor: colors.primary }]}
+                keyboardShouldPersistTaps="handled"
             >
-                {eventTypes.map((type) => (
-                    <Picker.Item key={type.value} label={type.label} value={type.value} />
+                {/* Основные поля */}
+                <TextInput
+                    style={[localStyles.input, { 
+                        borderColor: colors.border,
+                        color: colors.text,
+                        backgroundColor: colors.secondary
+                    }]}
+                    placeholder="Title"
+                    placeholderTextColor={colors.secondaryText}
+                    value={title}
+                    onChangeText={setTitle}
+                />
+
+                <TextInput
+                    style={[localStyles.descriptionInput, { 
+                        borderColor: colors.border,
+                        color: colors.text,
+                        backgroundColor: colors.secondary
+                    }]}
+                    placeholder="Description"
+                    placeholderTextColor={colors.secondaryText}
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                />
+
+                {/* Picker с единым стилем */}
+                <View style={[localStyles.pickerContainer, { 
+                    borderColor: colors.border,
+                    backgroundColor: colors.secondary
+                }]}>
+                    <Picker
+                        selectedValue={eventType}
+                        onValueChange={setEventType}
+                        dropdownIconColor={colors.text}
+                        style={{ color: colors.text }}
+                    >
+                        {eventTypes.map(type => (
+                            <Picker.Item 
+                                key={type.value} 
+                                label={type.label} 
+                                value={type.value} 
+                                color={colors.text}
+                            />
+                        ))}
+                    </Picker>
+                </View>
+
+                {/* Локация при необходимости */}
+                {(eventType === 'meeting_teacher' || eventType === 'meeting_tutor') && (
+                    <TextInput
+                        style={[localStyles.input, { 
+                            borderColor: colors.border,
+                            color: colors.text,
+                            backgroundColor: colors.secondary
+                        }]}
+                        placeholder="Location"
+                        placeholderTextColor={colors.secondaryText}
+                        value={location}
+                        onChangeText={setLocation}
+                    />
+                )}
+
+                {/* Переключатель */}
+                <View style={[localStyles.switchContainer, { 
+                    borderColor: colors.border,
+                    backgroundColor: colors.secondary
+                }]}>
+                    <Text style={[localStyles.switchLabel, { color: colors.text }]}>Emergency</Text>
+                    <Switch
+                        trackColor={{ false: colors.secondaryText, true: colors.accent }}
+                        thumbColor={colors.text}
+                        value={isEmergency}
+                        onValueChange={setIsEmergency}
+                    />
+                </View>
+
+                {/* Ссылки */}
+                {links.map((link, index) => (
+                    <TextInput
+                        key={index}
+                        style={[localStyles.input, { 
+                            borderColor: colors.border,
+                            color: colors.text,
+                            backgroundColor: colors.secondary
+                        }]}
+                        placeholder={`Link #${index + 1}`}
+                        placeholderTextColor={colors.secondaryText}
+                        value={link}
+                        onChangeText={(text) => handleLinkChange(text, index)}
+                    />
                 ))}
-            </Picker>
-            {showLocationField && (
-                <TextInput
-                    style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-                    placeholder="Location"
-                    placeholderTextColor={colors.text}
-                    value={location}
-                    onChangeText={setLocation}
-                />
-            )}
 
-            <View style={styles.emergencyContainer}>
-                <Text style={{ color: colors.text }}>Emergency:</Text>
-                <Switch
-                    trackColor={{ false: '#767577', true: '#81b0ff' }}
-                    thumbColor={isEmergency ? '#f5dd4b' : '#f4f3f4'}
-                    ios_backgroundColor="#3e3e3e"
-                    onValueChange={setIsEmergency}
-                    value={isEmergency}
-                />
-            </View>
+                {/* Кнопки вертикально */}
+                <View style={localStyles.buttonsContainer}>
+                    <MainButton
+                        title="Add Link"
+                        onPress={handleAddLink}
+                        icon="link"
+                        style={{ backgroundColor: colors.secondary }}
+                        textStyle={{ color: colors.text }}
+                    />
+                    <MainButton
+                        title="Create Event"
+                        onPress={handleAddEvent}
+                        icon="check"
+                        style={{ backgroundColor: colors.success }}
+                        textStyle={{ color: colors.buttonText }}
+                    />
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+    );
+};
 
-            <Text style={{ color: colors.text }}>Links:</Text>
-            {links.map((link, index) => (
-                <TextInput
-                    key={index}
-                    style={[styles.input, { color: colors.text, borderColor: colors.text }]}
-                    placeholder="Link"
-                    placeholderTextColor={colors.text}
-                    value={link}
-                    onChangeText={(text) => handleLinkChange(text, index)} />
-                ))
-            }
-            <Button title="Add Link" onPress={handleAddLink} />
+const localStyles = StyleSheet.create({
+    container: {
+        flexGrow: 1,
+        padding: 16,
+        paddingBottom: 40,
+        gap: 12,
+    },
+    input: {
+        height: 48,
+        fontSize: 16,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    descriptionInput: {
+        minHeight: 100,
+        fontSize: 16,
+        padding: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+        textAlignVertical: 'top',
+    },
+    pickerContainer: {
+        borderRadius: 8,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    switchContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    switchLabel: {
+        fontSize: 16,
+    },
+    buttonsContainer: {
+        gap: 12,
+        marginTop: 20,
+    },
+});
 
-            <Button title="Create Event" onPress={handleAddEvent} />
-            </View>
-        );
-    };
-    
-    const styles = StyleSheet.create({
-        container: {
-            flex: 1,
-            padding: 20,
-        },
-        title: {
-            fontSize: 24,
-            fontWeight: 'bold',
-            marginBottom: 10,
-        },
-        input: {
-            borderWidth: 1,
-            borderColor: '#ccc',
-            padding: 10,
-            marginBottom: 10,
-        },
-        emergencyContainer: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 10,
-        }
-    });
-    
-    export default AddEventScreen;
+export default AddEventScreen;

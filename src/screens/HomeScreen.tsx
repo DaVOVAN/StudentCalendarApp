@@ -51,6 +51,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
     }, [selectedCalendarId, deleteCalendar]);
 
+    const handleThemeNavigation = useCallback(() => {
+        navigation.navigate('ThemeSelection');
+      }, [navigation]);
+
     const handleTestAction = useCallback(() => {
         setSelectedCalendarId(null);
         setIsActionMenuVisible(false);
@@ -107,15 +111,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     return (
         <View style={[globalStyles.container, { backgroundColor: colors.primary }]}>
             <MainButton 
-                title="Add Calendar" 
+                title="Создать календарь" 
                 onPress={() => setShowAddCalendarModal(true)}
                 icon="add"
             />
             
             <MainButton 
-                title={`Toggle Theme (${theme})`} 
-                onPress={handleToggleTheme} 
-                icon="brightness-6"
+                title="Выбрать тему" 
+                onPress={handleThemeNavigation}
+                icon="palette"
             />
 
             <FlatList

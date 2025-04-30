@@ -1,75 +1,88 @@
 // src/screens/EventListScreen.tsx
-import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Button } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { format } from 'date-fns';
 import { CalendarEvent } from '../types/types';
-import { StackNavigationProp } from '@react-navigation/stack'; // Import StackNavigationProp
+import MainButton from '../components/MainButton';
 
 interface EventListScreenProps {
     route: RouteProp<RootStackParamList, 'EventList'>;
-    navigation: StackNavigationProp<RootStackParamList, 'EventList'>; // Add navigation prop
 }
 
-const EventListScreen: React.FC<EventListScreenProps> = ({ route, navigation }) => { // Get navigation from props
+const EventListScreen: React.FC<EventListScreenProps> = ({ route }) => {
+    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { calendarId, selectedDate } = route.params;
     const { calendars } = useCalendar();
-    const { theme, colors } = useTheme();
+    const { colors, styles } = useTheme();
 
     const calendar = calendars.find(c => c.id === calendarId);
-    const eventsForDate = calendar?.events.filter(event => format(new Date(event.endDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')) || [];
+    const eventsForDate = calendar?.events.filter(event => 
+        format(new Date(event.endDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')
+    ) || [];
 
     const handleAddEvent = useCallback(() => {
-        navigation.navigate('AddEvent', { calendarId: calendarId, selectedDate: selectedDate });
-    }, [navigation, calendarId, selectedDate]);
+        navigation.navigate('AddEvent', { calendarId, selectedDate });
+    }, [calendarId, selectedDate, navigation]);
 
     const handleViewEvent = useCallback((eventId: string) => {
-        navigation.navigate('ViewEvent', { calendarId: calendarId, eventId: eventId });
-    }, [navigation, calendarId]);
+        navigation.navigate('ViewEvent', { calendarId, eventId });
+    }, [calendarId, navigation]);
 
     const renderItem = useCallback(({ item }: { item: CalendarEvent }) => (
-        <TouchableOpacity style={[styles.eventItem, { backgroundColor: colors.secondary }]} onPress={() => handleViewEvent(item.id)}>
-            <Text style={[styles.eventTitle, { color: colors.text }]}>{item.title}</Text>
-            <Text style={{ color: colors.text }}>{item.description}</Text>
-        </TouchableOpacity>
+        <MainButton
+            title={item.title}
+            onPress={() => handleViewEvent(item.id)}
+            style={localStyles.eventItem}
+            textStyle={{ color: colors.text }}
+            icon="event"
+        />
     ), [handleViewEvent, colors]);
 
     return (
-        <View style={[styles.container, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.dateTitle, { color: colors.text }]}>{format(new Date(selectedDate), 'PPP')}</Text>
+        <View style={[localStyles.container, { backgroundColor: colors.primary }]}>
+            <Text style={[localStyles.dateTitle, { color: colors.text }]}>
+                {format(new Date(selectedDate), 'PPP')}
+            </Text>
 
             <FlatList
                 data={eventsForDate}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item.id}
+                contentContainerStyle={localStyles.list}
             />
 
-            <Button title="Add Event" onPress={handleAddEvent} />
+            <MainButton
+                title="Add Event"
+                onPress={handleAddEvent}
+                icon="add"
+                style={{ backgroundColor: colors.accent }}
+            />
         </View>
     );
 };
 
-const styles = StyleSheet.create({
+const localStyles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
     },
     dateTitle: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 20,
+        textAlign: 'center',
     },
     eventItem: {
-        padding: 10,
-        marginVertical: 5,
-        borderRadius: 5,
+        marginVertical: 8,
+        paddingVertical: 16,
     },
-    eventTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
+    list: {
+        paddingBottom: 20,
     },
 });
 
