@@ -6,7 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { format } from 'date-fns';
-import { Event } from '../types/types';
+import { CalendarEvent } from '../types/types';
 import { StackNavigationProp } from '@react-navigation/stack'; // Import StackNavigationProp
 
 interface EventListScreenProps {
@@ -30,7 +30,7 @@ const EventListScreen: React.FC<EventListScreenProps> = ({ route, navigation }) 
         navigation.navigate('ViewEvent', { calendarId: calendarId, eventId: eventId });
     }, [navigation, calendarId]);
 
-    const renderItem = useCallback(({ item }: { item: Event }) => (
+    const renderItem = useCallback(({ item }: { item: CalendarEvent }) => (
         <TouchableOpacity style={[styles.eventItem, { backgroundColor: colors.secondary }]} onPress={() => handleViewEvent(item.id)}>
             <Text style={[styles.eventTitle, { color: colors.text }]}>{item.title}</Text>
             <Text style={{ color: colors.text }}>{item.description}</Text>
