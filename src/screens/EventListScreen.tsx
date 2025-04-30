@@ -10,68 +10,67 @@ import { Event } from '../types/types';
 import { StackNavigationProp } from '@react-navigation/stack'; // Import StackNavigationProp
 
 interface EventListScreenProps {
-  route: RouteProp<RootStackParamList, 'EventList'>;
-  navigation: StackNavigationProp<RootStackParamList, 'EventList'>; // Add navigation prop
+    route: RouteProp<RootStackParamList, 'EventList'>;
+    navigation: StackNavigationProp<RootStackParamList, 'EventList'>; // Add navigation prop
 }
 
 const EventListScreen: React.FC<EventListScreenProps> = ({ route, navigation }) => { // Get navigation from props
-  const { calendarId, selectedDate } = route.params;
-  const { calendars } = useCalendar();
-  const { theme, colors } = useTheme();
+    const { calendarId, selectedDate } = route.params;
+    const { calendars } = useCalendar();
+    const { theme, colors } = useTheme();
 
-  const calendar = calendars.find(c => c.id === calendarId);
-  const eventsForDate = calendar?.events.filter(event => format(new Date(event.endDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')) || [];
+    const calendar = calendars.find(c => c.id === calendarId);
+    const eventsForDate = calendar?.events.filter(event => format(new Date(event.endDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')) || [];
 
-  const handleAddEvent = useCallback(() => {
-    navigation.navigate('AddEvent', { calendarId: calendarId, selectedDate: selectedDate });
-  }, [navigation, calendarId, selectedDate]);
+    const handleAddEvent = useCallback(() => {
+        navigation.navigate('AddEvent', { calendarId: calendarId, selectedDate: selectedDate });
+    }, [navigation, calendarId, selectedDate]);
 
-  const handleViewEvent = useCallback((eventId: string) => {
-    navigation.navigate('ViewEvent', { calendarId: calendarId, eventId: eventId });
-  }, [navigation, calendarId]);
+    const handleViewEvent = useCallback((eventId: string) => {
+        navigation.navigate('ViewEvent', { calendarId: calendarId, eventId: eventId });
+    }, [navigation, calendarId]);
 
-  const renderItem = useCallback(({ item }: { item: Event }) => (
-    <TouchableOpacity style={styles.eventItem} onPress={() => handleViewEvent(item.id)}>
-      <Text style={styles.eventTitle}>{item.title}</Text>
-      <Text>{item.description}</Text>
-    </TouchableOpacity>
-  ), [handleViewEvent]);
+    const renderItem = useCallback(({ item }: { item: Event }) => (
+        <TouchableOpacity style={[styles.eventItem, { backgroundColor: colors.secondary }]} onPress={() => handleViewEvent(item.id)}>
+            <Text style={[styles.eventTitle, { color: colors.text }]}>{item.title}</Text>
+            <Text style={{ color: colors.text }}>{item.description}</Text>
+        </TouchableOpacity>
+    ), [handleViewEvent, colors]);
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.primary }]}>
-      <Text style={styles.dateTitle}>{format(new Date(selectedDate), 'PPP')}</Text>
+    return (
+        <View style={[styles.container, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.dateTitle, { color: colors.text }]}>{format(new Date(selectedDate), 'PPP')}</Text>
 
-      <FlatList
-        data={eventsForDate}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-      />
+            <FlatList
+                data={eventsForDate}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+            />
 
-      <Button title="Add Event" onPress={handleAddEvent} />
-    </View>
-  );
+            <Button title="Add Event" onPress={handleAddEvent} />
+        </View>
+    );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  dateTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  eventItem: {
-    padding: 10,
-    marginVertical: 5,
-    backgroundColor: '#eee',
-    borderRadius: 5,
-  },
-  eventTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+    container: {
+        flex: 1,
+        padding: 20,
+    },
+    dateTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    eventItem: {
+        padding: 10,
+        marginVertical: 5,
+        borderRadius: 5,
+    },
+    eventTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
 });
 
 export default EventListScreen;
