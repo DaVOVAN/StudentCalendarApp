@@ -86,7 +86,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                         <View style={[localStyles.modalContent, { backgroundColor: colors.primary }]}>
                             <Text style={[localStyles.modalTitle, { color: colors.text }]}>New Calendar</Text>
                             <TextInput
-                                style={[localStyles.modalInput, { color: colors.text, borderColor: colors.accent }]}
+                                style={[localStyles.modalInput, { color: colors.accentText, borderColor: colors.accent }]}
                                 placeholder="Calendar name"
                                 placeholderTextColor={colors.text}
                                 value={newCalendarName}

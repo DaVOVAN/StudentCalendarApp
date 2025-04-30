@@ -20,4 +20,4 @@ export interface CalendarEvent {
   isEmergency?: boolean;
 }
 
-export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest';
+export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest' | 'military';

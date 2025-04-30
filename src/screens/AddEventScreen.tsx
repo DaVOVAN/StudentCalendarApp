@@ -179,15 +179,15 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                         title="Add Link"
                         onPress={handleAddLink}
                         icon="link"
-                        style={{ backgroundColor: colors.secondary }}
-                        textStyle={{ color: colors.text }}
+                        style={{ backgroundColor: colors.accent }}
+                        textStyle={{ color: colors.accentText }}
                     />
                     <MainButton
                         title="Create Event"
                         onPress={handleAddEvent}
                         icon="check"
-                        style={{ backgroundColor: colors.success }}
-                        textStyle={{ color: colors.buttonText }}
+                        style={{ backgroundColor: colors.accent }}
+                        textStyle={{ color: colors.accentText }}
                     />
                 </View>
             </ScrollView>
@@ -234,8 +234,8 @@ const localStyles = StyleSheet.create({
         fontSize: 16,
     },
     buttonsContainer: {
-        gap: 12,
-        marginTop: 20,
+        gap: 4,
+        marginTop: -4,
     },
 });
 

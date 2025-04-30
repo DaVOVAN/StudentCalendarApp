@@ -24,7 +24,7 @@ const MainButton: React.FC<MainButtonProps> = ({ title, onPress, icon, style, te
                 <MaterialIcons
                     name={icon}
                     size={20}
-                    color={colors.text}
+                    color={colors.accentText}
                     style={{ marginRight: 8 }}
                 />
             )}

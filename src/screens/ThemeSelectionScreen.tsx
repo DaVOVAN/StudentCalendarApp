@@ -7,7 +7,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { MaterialIcons } from '@expo/vector-icons';
 
-const themes: Theme[] = ['light', 'dark', 'pink', 'ocean', 'forest'];
+const themes: Theme[] = ['light', 'dark', 'pink', 'ocean', 'forest', 'military'];
 
 interface ThemeSelectionScreenProps {
   navigation: StackNavigationProp<RootStackParamList, 'ThemeSelection'>;
@@ -53,11 +53,12 @@ const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ navigation 
 
 const getThemeColorsPreview = (theme: Theme) => {
   const colors = {
-    light: ['#F8F9FA', '#2B2D42', '#4A4E69'],
-    dark: ['#1A1B26', '#A9B1D6', '#7AA2F7'],
-    pink: ['#FFF0F5', '#6D2E46', '#E75480'],
+    light: ['#F8F9FA', '#2B2D42', '#D1D1E2'],
+    dark: ['#1A1B26', '#A9B1D6', '#364181'],
+    pink: ['#FFF0F5', '#6D2E46', '#E871A1'],
     ocean: ['#E6F4F1', '#2A4A5F', '#3A7CA5'],
-    forest: ['#F0F4EF', '#354F52', '#588157'],
+    forest: ['#F0F4EF', '#354F52', '#729871'],
+    military: ['#F0F4EF', '#364733', '#6B9080' ]
   };
   return colors[theme];
 };
