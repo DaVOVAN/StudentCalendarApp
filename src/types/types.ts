@@ -6,7 +6,7 @@ export interface Calendar {
   events: CalendarEvent[];
 }
 
-export type EventType = 'laboratory' | 'checkpoint' | 'final' | 'meeting_teacher' | 'meeting_tutor' | 'deadline' | 'commission';
+export type EventType = 'laboratory' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'event' | 'commission' | 'other';
 
 export interface CalendarEvent {
   id: string;

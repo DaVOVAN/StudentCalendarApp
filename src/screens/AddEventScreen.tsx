@@ -36,13 +36,14 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
     const [links, setLinks] = useState(['']);
 
     const eventTypes = [
-        { label: 'Lab Work', value: 'laboratory' },
-        { label: 'Checkpoint', value: 'checkpoint' },
-        { label: 'Final Exam', value: 'final' },
-        { label: 'Teacher Meeting', value: 'meeting_teacher' },
-        { label: 'Tutor Meeting', value: 'meeting_tutor' },
-        { label: 'Deadline', value: 'deadline' },
-        { label: 'Commission', value: 'commission' },
+        { label: 'Лабораторная работа', value: 'laboratory' },
+        { label: 'Контрольная точка', value: 'checkpoint' },
+        { label: 'Итоговая контрольная работа', value: 'final' },
+        { label: 'Собрание', value: 'meeting' },
+        { label: 'Конференция', value: 'conference' },
+        { label: 'Общественное мероприятие', value: 'event' },
+        { label: 'Комиссия', value: 'commission' },
+        { label: 'Другое', value: 'Other' },
     ];
 
     const handleAddLink = useCallback(() => {
@@ -129,7 +130,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                 </View>
 
                 {/* Локация при необходимости */}
-                {(eventType === 'meeting_teacher' || eventType === 'meeting_tutor') && (
+                {(eventType === 'meeting' || eventType === 'conference') && (
                     <TextInput
                         style={[localStyles.input, { 
                             borderColor: colors.border,
