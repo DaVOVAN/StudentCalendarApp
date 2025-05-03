@@ -12,12 +12,15 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
   links: string[];
   eventType: EventType;
   location?: string;
   isEmergency?: boolean;
+  attachToEnd?: boolean;
 }
 
 export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest' | 'military';

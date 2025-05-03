@@ -57,28 +57,32 @@ const ViewEventScreen: React.FC<ViewEventScreenProps> = ({ route }) => {
             <View style={styles.content}>
                 {/* Date & Time */}
                 <View style={styles.section}>
-                    <View style={styles.row}>
-                        <MaterialIcons 
-                            name="calendar-today" 
-                            size={20} 
-                            color={colors.accent} 
-                            style={styles.icon}
-                        />
-                        <Text style={[styles.label, { color: colors.secondaryText }]}>
-                            {format(new Date(event.startDate), 'EEE, MMM d · HH:mm')}
-                        </Text>
-                    </View>
-                    <View style={styles.row}>
-                        <MaterialIcons 
-                            name="timer" 
-                            size={20} 
-                            color={colors.accent} 
-                            style={styles.icon}
-                        />
-                        <Text style={[styles.label, { color: colors.secondaryText }]}>
-                            {format(new Date(event.endDate), '- HH:mm')}
-                        </Text>
-                    </View>
+                    {event.startDate && (
+                        <View style={styles.row}>
+                            <MaterialIcons 
+                                name="calendar-today" 
+                                size={20} 
+                                color={colors.accent} 
+                                style={styles.icon}
+                            />
+                            <Text style={[styles.label, { color: colors.secondaryText }]}>
+                                {format(new Date(event.startDate), 'EEE, MMM d · HH:mm')}
+                            </Text>
+                        </View>
+                    )}
+                    {event.endDate && (
+                        <View style={styles.row}>
+                            <MaterialIcons 
+                                name="timer" 
+                                size={20} 
+                                color={colors.accent} 
+                                style={styles.icon}
+                            />
+                            <Text style={[styles.label, { color: colors.secondaryText }]}>
+                                {format(new Date(event.endDate), 'EEE, MMM d · HH:mm')}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Event Details */}

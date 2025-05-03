@@ -75,7 +75,13 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const eventsByDate = useMemo(() => {
         const groupedEvents: Record<string, CalendarEvent[]> = {};
         eventsForCalendar.forEach(event => {
-            const dateKey = format(new Date(event.endDate), 'yyyy-MM-dd');
+            const baseDate = event.attachToEnd 
+                ? event.endDate || event.startDate 
+                : event.startDate || event.endDate;
+            
+            if (!baseDate) return;
+
+            const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
             groupedEvents[dateKey] = groupedEvents[dateKey] || [];
             groupedEvents[dateKey].push(event);
         });

@@ -1,5 +1,5 @@
 // src/screens/AddEventScreen.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   View, 
   TextInput, 
@@ -8,7 +8,9 @@ import {
   Text, 
   ScrollView, 
   KeyboardAvoidingView, 
-  Platform 
+  Platform,
+  TouchableOpacity,
+  Alert 
 } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +19,11 @@ import { RootStackParamList } from '../types/navigation';
 import { EventType } from '../types/types';
 import { Picker } from '@react-native-picker/picker';
 import MainButton from '../components/MainButton';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format, setMinutes, isAfter } from 'date-fns';
+import { MaterialIcons } from '@expo/vector-icons';
+
+const roundMinutes = (date: Date) => setMinutes(date, Math.round(date.getMinutes() / 5) * 5);
 
 interface AddEventScreenProps {
     route: RouteProp<RootStackParamList, 'AddEvent'>;
@@ -34,17 +41,76 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
     const [location, setLocation] = useState('');
     const [isEmergency, setIsEmergency] = useState(false);
     const [links, setLinks] = useState(['']);
+    const [visiblePicker, setVisiblePicker] = useState<'startDate'|'startTime'|'endDate'|'endTime'|null>(null);
+    const [attachToEnd, setAttachToEnd] = useState(false);
+    const [dateError, setDateError] = useState<string | null>(null);
+    
+    const defaultDate = new Date(selectedDate);
+    const [startDate, setStartDate] = useState<Date | undefined>();
+    const [startTime, setStartTime] = useState<Date | undefined>();
+    const [endDate, setEndDate] = useState<Date | undefined>();
+    const [endTime, setEndTime] = useState<Date | undefined>();
 
-    const eventTypes = [
-        { label: 'Лабораторная работа', value: 'laboratory' },
-        { label: 'Контрольная точка', value: 'checkpoint' },
-        { label: 'Итоговая контрольная работа', value: 'final' },
-        { label: 'Собрание', value: 'meeting' },
-        { label: 'Конференция', value: 'conference' },
-        { label: 'Общественное мероприятие', value: 'event' },
-        { label: 'Комиссия', value: 'commission' },
-        { label: 'Другое', value: 'Other' },
-    ];
+    useEffect(() => {
+        if(eventType === 'laboratory') {
+            const newEnd = roundMinutes(new Date(selectedDate));
+            newEnd.setDate(newEnd.getDate() + 1);
+            setEndDate(newEnd);
+            setEndTime(newEnd);
+            setStartDate(undefined);
+            setStartTime(undefined);
+            setAttachToEnd(true);
+        } else {
+            const newStart = roundMinutes(new Date(selectedDate));
+            setStartDate(newStart);
+            setStartTime(newStart);
+            setEndDate(undefined);
+            setEndTime(undefined);
+            setAttachToEnd(false);
+        }
+    }, [eventType]);
+
+    useEffect(() => {
+        if(startDate && endDate) {
+            setAttachToEnd(false);
+        } else if(endDate) {
+            setAttachToEnd(true);
+        } else {
+            setAttachToEnd(false);
+        }
+    }, [startDate, endDate]);
+
+    const validateDates = () => {
+        if (startDate && endDate && isAfter(startDate, endDate)) {
+            setDateError('Дата начала не может быть позже даты окончания');
+            return false;
+        }
+        setDateError(null);
+        return true;
+    };
+
+    const handleDateTimeChange = (event: any, date?: Date) => {
+        setVisiblePicker(null);
+        if (!date) return;
+
+        const roundedDate = roundMinutes(date);
+        switch(visiblePicker) {
+            case 'startDate': setStartDate(roundedDate); break;
+            case 'startTime': setStartTime(roundedDate); break;
+            case 'endDate': setEndDate(roundedDate); break;
+            case 'endTime': setEndTime(roundedDate); break;
+        }
+    };
+
+    const clearDate = (type: 'start' | 'end') => {
+        if (type === 'start') {
+            setStartDate(undefined);
+            setStartTime(undefined);
+        } else {
+            setEndDate(undefined);
+            setEndTime(undefined);
+        }
+    };
 
     const handleAddLink = useCallback(() => {
         setLinks([...links, '']);
@@ -57,20 +123,37 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
     }, [links]);
 
     const handleAddEvent = useCallback(() => {
+        if (!validateDates()) return;
+        if (!title.trim()) {
+            Alert.alert('Ошибка', 'Название события обязательно');
+            return;
+        }
+
+        const finalAttachToEnd = endDate ? attachToEnd : false;
+        const baseDate = finalAttachToEnd ? endDate : startDate;
+
+        if(!baseDate) {
+            Alert.alert('Ошибка', 'Необходимо выбрать хотя бы одну дату');
+            return;
+        }
+
         const eventData = {
             title,
             description,
-            startDate: selectedDate,
-            endDate: selectedDate,
+            startDate: startDate?.toISOString(),
+            startTime: startTime ? format(startTime, 'HH:mm') : undefined,
+            endDate: endDate?.toISOString(),
+            endTime: endTime ? format(endTime, 'HH:mm') : undefined,
             links: links.filter(link => link.trim()),
             eventType,
             location: location || undefined,
             isEmergency,
+            attachToEnd: finalAttachToEnd
         };
 
         addEvent(calendarId, eventData);
         navigation.goBack();
-    }, [calendarId, title, description, links, eventType, location, isEmergency, addEvent, navigation]);
+    }, [startDate, endDate, startTime, endTime, title, description, links, eventType, location, isEmergency]);
 
     return (
         <KeyboardAvoidingView
@@ -81,14 +164,13 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                 contentContainerStyle={[localStyles.container, { backgroundColor: colors.primary }]}
                 keyboardShouldPersistTaps="handled"
             >
-                {/* Основные поля */}
                 <TextInput
                     style={[localStyles.input, { 
                         borderColor: colors.border,
                         color: colors.text,
                         backgroundColor: colors.secondary
                     }]}
-                    placeholder="Title"
+                    placeholder="Название"
                     placeholderTextColor={colors.secondaryText}
                     value={title}
                     onChangeText={setTitle}
@@ -100,14 +182,13 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                         color: colors.text,
                         backgroundColor: colors.secondary
                     }]}
-                    placeholder="Description"
+                    placeholder="Описание"
                     placeholderTextColor={colors.secondaryText}
                     value={description}
                     onChangeText={setDescription}
                     multiline
                 />
 
-                {/* Picker с единым стилем */}
                 <View style={[localStyles.pickerContainer, { 
                     borderColor: colors.border,
                     backgroundColor: colors.secondary
@@ -116,20 +197,26 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                         selectedValue={eventType}
                         onValueChange={setEventType}
                         dropdownIconColor={colors.text}
-                        style={{ color: colors.text }}
+                        style={{ 
+                            color: colors.text,
+                            backgroundColor: colors.secondary
+                        }}
+                        itemStyle={{
+                            color: colors.text,
+                            backgroundColor: colors.secondary
+                        }}
                     >
-                        {eventTypes.map(type => (
-                            <Picker.Item 
-                                key={type.value} 
-                                label={type.label} 
-                                value={type.value} 
-                                color={colors.text}
-                            />
-                        ))}
+                        <Picker.Item label="Лабораторная работа" value="laboratory" style={{ color: colors.text, backgroundColor: colors.secondary }}  />
+                        <Picker.Item label="Контрольная точка" value="checkpoint" style={{ color: colors.text, backgroundColor: colors.secondary }} />
+                        <Picker.Item label="Итоговая работа" value="final" style={{ color: colors.text, backgroundColor: colors.secondary }} />
+                        <Picker.Item label="Собрание" value="meeting" style={{ color: colors.text, backgroundColor: colors.secondary }} />
+                        <Picker.Item label="Конференция" value="conference" style={{ color: colors.text, backgroundColor: colors.secondary }} />
+                        <Picker.Item label="Общественное мероприятие" value="event" style={{ color: colors.text, backgroundColor: colors.secondary }} />
+                        <Picker.Item label="Комиссия" value="commission" style={{ color: colors.text, backgroundColor: colors.secondary }} />
+                        <Picker.Item label="Другое" value="other" style={{ color: colors.text, backgroundColor: colors.secondary }} />
                     </Picker>
                 </View>
 
-                {/* Локация при необходимости */}
                 {(eventType === 'meeting' || eventType === 'conference') && (
                     <TextInput
                         style={[localStyles.input, { 
@@ -137,19 +224,133 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                             color: colors.text,
                             backgroundColor: colors.secondary
                         }]}
-                        placeholder="Location"
+                        placeholder="Место"
                         placeholderTextColor={colors.secondaryText}
                         value={location}
                         onChangeText={setLocation}
                     />
                 )}
 
-                {/* Переключатель */}
+                <View style={localStyles.dateSection}>
+                    <Text style={[localStyles.sectionTitle, { color: colors.text }]}>
+                        Время события
+                    </Text>
+
+                    <View style={localStyles.dateGroup}>
+                        <View style={[localStyles.dateBlock, { backgroundColor: colors.secondary }]}>
+                            <View style={localStyles.dateHeader}>
+                                <Text style={[localStyles.dateLabel, { color: colors.text }]}>
+                                    Начало
+                                </Text>
+                                {startDate && (
+                                    <TouchableOpacity 
+                                        onPress={() => clearDate('start')}
+                                        style={localStyles.clearButton}>
+                                        <MaterialIcons name="close" size={16} color={colors.text} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setVisiblePicker('startDate')}
+                                style={localStyles.dateButton}>
+                                <Text style={[localStyles.dateButtonText, { color: colors.text }]}>
+                                    {startDate ? format(startDate, 'dd.MM.yyyy') : 'Выбрать дату'}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setVisiblePicker('startTime')}
+                                style={localStyles.dateButton}>
+                                <Text style={[localStyles.dateButtonText, { color: colors.text }]}>
+                                    {startTime ? format(startTime, 'HH:mm') : 'Выбрать время'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={[localStyles.dateBlock, { backgroundColor: colors.secondary }]}>
+                            <View style={localStyles.dateHeader}>
+                                <Text style={[localStyles.dateLabel, { color: colors.text }]}>
+                                    Окончание
+                                </Text>
+                                {endDate && (
+                                    <TouchableOpacity 
+                                        onPress={() => clearDate('end')}
+                                        style={localStyles.clearButton}>
+                                        <MaterialIcons name="close" size={16} color={colors.text} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setVisiblePicker('endDate')}
+                                style={localStyles.dateButton}>
+                                <Text style={[localStyles.dateButtonText, { color: colors.text }]}>
+                                    {endDate ? format(endDate, 'dd.MM.yyyy') : 'Выбрать дату'}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setVisiblePicker('endTime')}
+                                style={localStyles.dateButton}>
+                                <Text style={[localStyles.dateButtonText, { color: colors.text }]}>
+                                    {endTime ? format(endTime, 'HH:mm') : 'Выбрать время'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {startDate && endDate && (
+                        <View style={[localStyles.attachRow, { backgroundColor: colors.secondary }]}>
+                            <Text style={[localStyles.attachLabel, { color: colors.text }]}>
+                                Прикрепить к:
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setAttachToEnd(false)}
+                                style={[
+                                    localStyles.attachButton,
+                                    !attachToEnd && { backgroundColor: colors.accent }
+                                ]}>
+                                <Text style={[localStyles.attachButtonText, !attachToEnd && { color: colors.accentText }]}>
+                                    Началу
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setAttachToEnd(true)}
+                                style={[
+                                    localStyles.attachButton,
+                                    attachToEnd && { backgroundColor: colors.accent }
+                                ]}>
+                                <Text style={[localStyles.attachButtonText, attachToEnd && { color: colors.accentText }]}>
+                                    Концу
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {dateError && (
+                        <Text style={[localStyles.errorText, { color: colors.emergency }]}>
+                            {dateError}
+                        </Text>
+                    )}
+                </View>
+
+                {visiblePicker && (
+                    <DateTimePicker
+                        value={
+                            visiblePicker === 'startDate' ? startDate || new Date() :
+                            visiblePicker === 'startTime' ? startTime || new Date() :
+                            visiblePicker === 'endDate' ? endDate || new Date() :
+                            endTime || new Date()
+                        }
+                        mode={visiblePicker.includes('Date') ? 'date' : 'time'}
+                        minuteInterval={5}
+                        display="spinner"
+                        onChange={handleDateTimeChange}
+                    />
+                )}
+
                 <View style={[localStyles.switchContainer, { 
                     borderColor: colors.border,
                     backgroundColor: colors.secondary
                 }]}>
-                    <Text style={[localStyles.switchLabel, { color: colors.text }]}>Emergency</Text>
+                    <Text style={[localStyles.switchLabel, { color: colors.text }]}>Срочное</Text>
                     <Switch
                         trackColor={{ false: colors.secondaryText, true: colors.accent }}
                         thumbColor={colors.text}
@@ -158,7 +359,6 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                     />
                 </View>
 
-                {/* Ссылки */}
                 {links.map((link, index) => (
                     <TextInput
                         key={index}
@@ -167,24 +367,23 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                             color: colors.text,
                             backgroundColor: colors.secondary
                         }]}
-                        placeholder={`Link #${index + 1}`}
+                        placeholder={`Ссылка #${index + 1}`}
                         placeholderTextColor={colors.secondaryText}
                         value={link}
                         onChangeText={(text) => handleLinkChange(text, index)}
                     />
                 ))}
 
-                {/* Кнопки вертикально */}
                 <View style={localStyles.buttonsContainer}>
                     <MainButton
-                        title="Add Link"
+                        title="Добавить ссылку"
                         onPress={handleAddLink}
                         icon="link"
                         style={{ backgroundColor: colors.accent }}
                         textStyle={{ color: colors.accentText }}
                     />
                     <MainButton
-                        title="Create Event"
+                        title="Создать"
                         onPress={handleAddEvent}
                         icon="check"
                         style={{ backgroundColor: colors.accent }}
@@ -237,6 +436,70 @@ const localStyles = StyleSheet.create({
     buttonsContainer: {
         gap: 4,
         marginTop: -4,
+    },
+    dateSection: {
+        marginVertical: 16,
+        gap: 12,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '500',
+        marginBottom: 8,
+    },
+    dateGroup: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    dateBlock: {
+        flex: 1,
+        borderRadius: 8,
+        padding: 12,
+    },
+    dateHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    dateLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    clearButton: {
+        padding: 4,
+    },
+    dateButton: {
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginVertical: 4,
+    },
+    dateButtonText: {
+        fontSize: 14,
+    },
+    attachRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 8,
+        padding: 12,
+        gap: 8,
+    },
+    attachLabel: {
+        fontSize: 14,
+        marginRight: 8,
+    },
+    attachButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+    },
+    attachButtonText: {
+        fontSize: 14,
+    },
+    errorText: {
+        fontSize: 14,
+        marginTop: 8,
+        textAlign: 'center',
     },
 });
 

@@ -21,9 +21,15 @@ const EventListScreen: React.FC<EventListScreenProps> = ({ route }) => {
     const { colors, styles } = useTheme();
 
     const calendar = calendars.find(c => c.id === calendarId);
-    const eventsForDate = calendar?.events.filter(event => 
-        format(new Date(event.endDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd')
-    ) || [];
+    const eventsForDate = calendar?.events.filter(event => {
+        const eventDate = event.attachToEnd 
+            ? event.endDate || event.startDate 
+            : event.startDate || event.endDate;
+        
+        if(!eventDate) return false;
+        
+        return format(new Date(eventDate), 'yyyy-MM-dd') === format(new Date(selectedDate), 'yyyy-MM-dd');
+    }) || [];
 
     const handleAddEvent = useCallback(() => {
         navigation.navigate('AddEvent', { calendarId, selectedDate });
@@ -57,7 +63,7 @@ const EventListScreen: React.FC<EventListScreenProps> = ({ route }) => {
             />
 
             <MainButton
-                title="Add Event"
+                title="Добавить событие"
                 onPress={handleAddEvent}
                 icon="add"
                 style={{ backgroundColor: colors.accent }}

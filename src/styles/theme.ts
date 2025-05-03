@@ -115,6 +115,14 @@ export const getThemeStyles = (theme: Theme) => {
     const colors = getThemeColors(theme);
 
     return StyleSheet.create({
+      picker: {
+            backgroundColor: colors.secondary,
+            color: colors.text,
+        },
+        pickerItem: {
+            backgroundColor: colors.secondary,
+            color: colors.text,
+        },
         button: {
             backgroundColor: colors.accent,
             padding: 12,
