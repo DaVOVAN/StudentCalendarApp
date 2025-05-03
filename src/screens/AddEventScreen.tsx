@@ -191,46 +191,74 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                 keyboardShouldPersistTaps="handled"
             >
                 {isShared && (
-                    <View style={[localStyles.calendarsContainer, { backgroundColor: colors.secondary }]}>
+                    <View style={[localStyles.calendarsContainer, { 
+                        borderColor: colors.border,
+                        backgroundColor: colors.secondary
+                    }]}>
                         <TouchableOpacity 
-                            style={localStyles.collapseHeader}
+                            style={[localStyles.collapseHeader, {
+                                borderBottomWidth: isCalendarsCollapsed ? 0 : 1,
+                                borderColor: colors.border
+                            }]}
                             onPress={toggleCalendarsVisibility}
                         >
-                            <Text style={[localStyles.sectionTitle, { color: colors.text }]}>
-                                Календари ({selectedCalendars.length})
-                            </Text>
-                            <MaterialIcons 
-                                name={isCalendarsCollapsed ? 'keyboard-arrow-down' : 'keyboard-arrow-up'} 
-                                size={24} 
-                                color={colors.text} 
-                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <MaterialIcons 
+                                    name={isCalendarsCollapsed ? 'unfold-more' : 'unfold-less'} 
+                                    size={20} 
+                                    color={colors.text} 
+                                />
+                                <Text style={[localStyles.sectionTitle, { color: colors.text }]}>
+                                    Выбор календарей
+                                </Text>
+                            </View>
+                            <View style={[localStyles.counterBadge, { backgroundColor: colors.accent }]}>
+                                <Text style={[localStyles.counterText, { color: colors.accentText }]}>
+                                    {selectedCalendars.length}
+                                </Text>
+                            </View>
                         </TouchableOpacity>
                         
                         {!isCalendarsCollapsed && (
-                            <>
-                                {calendars.map(calendar => (
+                            <View style={{ paddingHorizontal: 8 }}>
+                                {calendars.map((calendar) => (
                                     <TouchableOpacity
                                         key={calendar.id}
-                                        style={[localStyles.calendarItem, { 
-                                            backgroundColor: selectedCalendars.includes(calendar.id) 
-                                                ? colors.accent 
-                                                : colors.primary 
-                                        }]}
+                                        style={[
+                                            localStyles.calendarItem,
+                                            {
+                                                borderLeftColor: selectedCalendars.includes(calendar.id) 
+                                                    ? colors.accent 
+                                                    : 'transparent',
+                                                backgroundColor: selectedCalendars.includes(calendar.id)
+                                                    ? `${colors.accent}20`
+                                                    : 'transparent'
+                                            }
+                                        ]}
                                         onPress={() => toggleCalendarSelection(calendar.id)}
                                     >
-                                        <Text style={{ 
-                                            color: selectedCalendars.includes(calendar.id) 
-                                                ? colors.accentText 
-                                                : colors.text 
-                                        }}>
+                                        <MaterialIcons
+                                            name={selectedCalendars.includes(calendar.id) 
+                                                ? 'check-box' 
+                                                : 'check-box-outline-blank'}
+                                            size={24}
+                                            color={selectedCalendars.includes(calendar.id)
+                                                ? colors.accent
+                                                : colors.text}
+                                        />
+                                        <Text style={[
+                                            localStyles.calendarText,
+                                            { 
+                                                color: selectedCalendars.includes(calendar.id)
+                                                    ? colors.secondaryText
+                                                    : colors.text
+                                            }
+                                        ]}>
                                             {calendar.name}
                                         </Text>
-                                        {selectedCalendars.includes(calendar.id) && (
-                                            <MaterialIcons name="check" size={20} color={colors.accentText} />
-                                        )}
                                     </TouchableOpacity>
                                 ))}
-                            </>
+                            </View>
                         )}
                     </View>
                 )}
@@ -573,22 +601,43 @@ const localStyles = StyleSheet.create({
         textAlign: 'center',
     },
     calendarsContainer: {
-        borderRadius: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginVertical: 8,
         overflow: 'hidden',
-    },
-    calendarItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 12,
-        paddingHorizontal: 16,
-        marginVertical: 4,
     },
     collapseHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 16,
+        paddingVertical: 14,
+    },
+    counterBadge: {
+        minWidth: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+    },
+    counterText: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    calendarItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        gap: 12,
+        borderLeftWidth: 4,
+        borderRadius: 4,
+        marginVertical: 4,
+    },
+    calendarText: {
+        fontSize: 16,
+        flex: 1,
     },
 });
 
