@@ -31,8 +31,8 @@ interface AddEventScreenProps {
 
 const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
     const { colors, styles } = useTheme();
-    const { calendarId, selectedDate } = route.params;
-    const { addEvent } = useCalendar();
+    const { calendarId, selectedDate, isShared } = route.params;
+    const { addEvent, calendars } = useCalendar();
     const navigation = useNavigation();
 
     const [title, setTitle] = useState('');
@@ -44,8 +44,10 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
     const [visiblePicker, setVisiblePicker] = useState<'startDate'|'startTime'|'endDate'|'endTime'|null>(null);
     const [attachToEnd, setAttachToEnd] = useState(false);
     const [dateError, setDateError] = useState<string | null>(null);
+    const [selectedCalendars, setSelectedCalendars] = useState<string[]>([]);
+    const [isCalendarsCollapsed, setIsCalendarsCollapsed] = useState(true);
     
-    const defaultDate = new Date(selectedDate);
+    const defaultDate = new Date(selectedDate || Date.now());
     const [startDate, setStartDate] = useState<Date | undefined>();
     const [startTime, setStartTime] = useState<Date | undefined>();
     const [endDate, setEndDate] = useState<Date | undefined>();
@@ -53,7 +55,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
 
     useEffect(() => {
         if(eventType === 'laboratory') {
-            const newEnd = roundMinutes(new Date(selectedDate));
+            const newEnd = roundMinutes(new Date(defaultDate));
             newEnd.setDate(newEnd.getDate() + 1);
             setEndDate(newEnd);
             setEndTime(newEnd);
@@ -61,7 +63,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
             setStartTime(undefined);
             setAttachToEnd(true);
         } else {
-            const newStart = roundMinutes(new Date(selectedDate));
+            const newStart = roundMinutes(new Date(defaultDate));
             setStartDate(newStart);
             setStartTime(newStart);
             setEndDate(undefined);
@@ -122,10 +124,26 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
         setLinks(newLinks);
     }, [links]);
 
+    const toggleCalendarSelection = (calendarId: string) => {
+        setSelectedCalendars(prev => 
+            prev.includes(calendarId)
+                ? prev.filter(id => id !== calendarId)
+                : [...prev, calendarId]
+        );
+    };
+
+    const toggleCalendarsVisibility = () => {
+        setIsCalendarsCollapsed(!isCalendarsCollapsed);
+    };
+
     const handleAddEvent = useCallback(() => {
         if (!validateDates()) return;
         if (!title.trim()) {
             Alert.alert('Ошибка', 'Название события обязательно');
+            return;
+        }
+        if (isShared && selectedCalendars.length === 0) {
+            Alert.alert('Ошибка', 'Выберите хотя бы один календарь');
             return;
         }
 
@@ -151,9 +169,17 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
             attachToEnd: finalAttachToEnd
         };
 
-        addEvent(calendarId, eventData);
+        const targetCalendars = isShared ? selectedCalendars : [calendarId as string];
+        targetCalendars.forEach(calId => {
+            const eventWithUniqueId = { 
+                ...eventData, 
+                id: Date.now().toString() + '-' + calId 
+            };
+            addEvent(calId, eventWithUniqueId);
+        });
+        
         navigation.goBack();
-    }, [startDate, endDate, startTime, endTime, title, description, links, eventType, location, isEmergency]);
+    }, [startDate, endDate, startTime, endTime, title, description, links, eventType, location, isEmergency, selectedCalendars]);
 
     return (
         <KeyboardAvoidingView
@@ -164,6 +190,51 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                 contentContainerStyle={[localStyles.container, { backgroundColor: colors.primary }]}
                 keyboardShouldPersistTaps="handled"
             >
+                {isShared && (
+                    <View style={[localStyles.calendarsContainer, { backgroundColor: colors.secondary }]}>
+                        <TouchableOpacity 
+                            style={localStyles.collapseHeader}
+                            onPress={toggleCalendarsVisibility}
+                        >
+                            <Text style={[localStyles.sectionTitle, { color: colors.text }]}>
+                                Календари ({selectedCalendars.length})
+                            </Text>
+                            <MaterialIcons 
+                                name={isCalendarsCollapsed ? 'keyboard-arrow-down' : 'keyboard-arrow-up'} 
+                                size={24} 
+                                color={colors.text} 
+                            />
+                        </TouchableOpacity>
+                        
+                        {!isCalendarsCollapsed && (
+                            <>
+                                {calendars.map(calendar => (
+                                    <TouchableOpacity
+                                        key={calendar.id}
+                                        style={[localStyles.calendarItem, { 
+                                            backgroundColor: selectedCalendars.includes(calendar.id) 
+                                                ? colors.accent 
+                                                : colors.primary 
+                                        }]}
+                                        onPress={() => toggleCalendarSelection(calendar.id)}
+                                    >
+                                        <Text style={{ 
+                                            color: selectedCalendars.includes(calendar.id) 
+                                                ? colors.accentText 
+                                                : colors.text 
+                                        }}>
+                                            {calendar.name}
+                                        </Text>
+                                        {selectedCalendars.includes(calendar.id) && (
+                                            <MaterialIcons name="check" size={20} color={colors.accentText} />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </>
+                        )}
+                    </View>
+                )}
+
                 <TextInput
                     style={[localStyles.input, { 
                         borderColor: colors.border,
@@ -500,6 +571,24 @@ const localStyles = StyleSheet.create({
         fontSize: 14,
         marginTop: 8,
         textAlign: 'center',
+    },
+    calendarsContainer: {
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    calendarItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 12,
+        paddingHorizontal: 16,
+        marginVertical: 4,
+    },
+    collapseHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
     },
 });
 

@@ -35,11 +35,9 @@ export const themedStyles = (theme: Theme) => {
         text: {
             color: colors.text,
         },
-        // Add more styles as needed
     });
 };
 
 export const applyTheme = (theme: Theme) => {
-    // You might dispatch an action to update Redux/Context state here if you're using a state management library
-    console.log('Applied theme:', theme);
+    console.log('Применена тема:', theme);
 };

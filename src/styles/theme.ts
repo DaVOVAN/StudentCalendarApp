@@ -15,7 +15,7 @@ export const getThemeColors = (theme: Theme) => {
         secondaryText: '#6C757D', // Серый текст
         calendarDayBackground: '#FFFFFF', 
         calendarOtherMonth: '#DEE2E6',
-        emergency: '#EF233C', // Ярко-красный
+        emergency: '#828CAB', // Ярко-красный
         modalOverlay: 'rgba(222, 226, 230, 0.8)',
         buttonHover: '#CED4DA',
         border: '#ADB5BD'
@@ -32,7 +32,7 @@ export const getThemeColors = (theme: Theme) => {
         secondaryText: '#565F89', 
         calendarDayBackground: '#2D3047',
         calendarOtherMonth: '#1E2030',
-        emergency: '#F7768E',   // Неоново-розовый
+        emergency: '#116588',   // Неоново-розовый
         modalOverlay: 'rgba(30, 32, 48, 0.95)',
         buttonHover: '#343B58',
         border: '#414868'
@@ -66,7 +66,7 @@ export const getThemeColors = (theme: Theme) => {
         secondaryText: '#5C8A9F',
         calendarDayBackground: '#D4EDF4',
         calendarOtherMonth: '#A2C4D9',
-        emergency: '#E63946',   // Коралловый
+        emergency: '#3a4fa5',   // Коралловый
         modalOverlay: 'rgba(168, 218, 220, 0.9)',
         buttonHover: '#89C2D9',
         border: '#61A5C2'
@@ -83,7 +83,7 @@ export const getThemeColors = (theme: Theme) => {
         secondaryText: '#6B9080',
         calendarDayBackground: '#E3E9D3',
         calendarOtherMonth: '#B6C2A1',
-        emergency: '#D64933',   // Тыквенный
+        emergency: '#2ead2b',   // Тыквенный
         modalOverlay: 'rgba(195, 213, 187, 0.9)',
         buttonHover: '#A3B18A',
         border: '#84A98C'
@@ -98,9 +98,9 @@ export const getThemeColors = (theme: Theme) => {
         accent: '#364733',
         accentText: '#DADCD5',
         secondaryText: '#6B9080',
-        calendarDayBackground: '#E3E9D3',
-        calendarOtherMonth: '#B6C2A1',
-        emergency: '#344e41',
+        calendarDayBackground: '#E0D9C8',
+        calendarOtherMonth: '#C5BDA9',
+        emergency: '#5c6d4e',
         modalOverlay: 'rgba(195, 213, 187, 0.9)',
         buttonHover: '#A3B18A',
         border: '#84A98C'

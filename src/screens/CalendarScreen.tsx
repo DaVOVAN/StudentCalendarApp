@@ -21,6 +21,7 @@ import { CalendarEvent } from '../types/types';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
+import { EventType } from '../types/types';
 
 const CalendarDay: React.FC<{
     date: Date;
@@ -58,7 +59,7 @@ const CalendarDay: React.FC<{
 const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { calendarId } = route.params;
-    const { calendars } = useCalendar();
+    const { calendars, addEvent, updateCalendars } = useCalendar();
     const { colors } = useTheme();
     
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -118,6 +119,39 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
         });
     }, [calendarId, selectedDate, navigation]);
 
+    const handleClearDate = useCallback((date: Date) => {
+        const dateKey = format(date, 'yyyy-MM-dd');
+        
+        updateCalendars(prevCalendars => 
+            prevCalendars.map(calendar => ({
+                ...calendar,
+                events: calendar.events.filter(event => {
+                    const eventDate = event.attachToEnd 
+                        ? event.endDate || event.startDate 
+                        : event.startDate || event.endDate;
+                    return eventDate ? format(new Date(eventDate), 'yyyy-MM-dd') !== dateKey : true;
+                })
+            }))
+        );
+    }, [updateCalendars]);
+
+    const handleAddTestEvent = useCallback(() => {
+        if (!calendarId || !selectedDate) return;
+    
+        const testEvent = {
+            title: 'Тест',
+            description: 'Тестовое описание',
+            eventType: 'other' as EventType,
+            startDate: selectedDate.toISOString(),
+            attachToEnd: false,
+            links: [],
+            isEmergency: false
+        };
+    
+        addEvent(calendarId, testEvent);
+        setIsActionMenuVisible(false);
+    }, [calendarId, selectedDate, addEvent]);
+
     return (
         <View style={[styles.container, { backgroundColor: colors.primary }]}>
             <View style={styles.header}>
@@ -158,8 +192,11 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
             </View>
 
             <ActionMenu
+                onAddTestEvent={handleAddTestEvent}
                 isVisible={isActionMenuVisible}
-                onAddEvent={handleAddEvent}
+                selectedDate={selectedDate}
+                onClearDate={handleClearDate}
+                hasEvents={!!selectedDate && !!eventsByDate[format(selectedDate, 'yyyy-MM-dd')]}
                 onClose={() => setIsActionMenuVisible(false)}
             />
         </View>

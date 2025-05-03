@@ -4,6 +4,6 @@ export type RootStackParamList = {
   Calendar: { calendarId: string };
   EventList: { calendarId: string; selectedDate: string };
   ViewEvent: { calendarId: string; eventId: string };
-  AddEvent: { calendarId: string; selectedDate: string };
+  AddEvent: { calendarId?: string; selectedDate?: string; isShared?: boolean };
   ThemeSelection: undefined;
 };

@@ -1,6 +1,6 @@
 // src/screens/HomeScreen.tsx
-import React, { useState, useCallback } from 'react';
-import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, Alert, Modal, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, TextInput, FlatList, Text, TouchableOpacity, StyleSheet, Alert, Modal, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { globalStyles } from '../styles/globalStyles';
@@ -10,55 +10,93 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import ActionMenu from '../components/ActionMenu';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HomeScreenProps {
     navigation: StackNavigationProp<RootStackParamList, 'Home'>;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-    const [newCalendarName, setNewCalendarName] = useState('');
     const { calendars, addCalendar, deleteCalendar } = useCalendar();
-    const { theme, setTheme, styles, colors } = useTheme();
+    const { colors } = useTheme();
     const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
     const [isActionMenuVisible, setIsActionMenuVisible] = useState(false);
     const [showAddCalendarModal, setShowAddCalendarModal] = useState(false);
-
-    const handleAddCalendar = useCallback(() => {
-        if (newCalendarName) {
-            addCalendar(newCalendarName);
-            setNewCalendarName('');
-        }
-    }, [newCalendarName, addCalendar]);
-
-    const handleToggleTheme = useCallback(() => {
-        setTheme(theme === 'light' ? 'dark' : 'light');
-    }, [theme, setTheme]);
+    const insets = useSafeAreaInsets();
 
     const handleDeleteCalendar = useCallback(() => {
         if (selectedCalendarId) {
             Alert.alert(
-                "Delete Calendar",
-                "Are you sure you want to delete this calendar?",
+                "Удаление календаря",
+                "Вы уверены, что хотите удалить этот календарь?",
                 [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "OK", onPress: () => {
-                        deleteCalendar(selectedCalendarId);
-                        setSelectedCalendarId(null);
-                        setIsActionMenuVisible(false);
-                    }}
+                    { text: "Отмена", style: "cancel" },
+                    { 
+                        text: "Удалить", 
+                        onPress: () => {
+                            deleteCalendar(selectedCalendarId);
+                            setSelectedCalendarId(null);
+                            setIsActionMenuVisible(false);
+                        }
+                    }
                 ]
             );
         }
     }, [selectedCalendarId, deleteCalendar]);
 
-    const handleThemeNavigation = useCallback(() => {
-        navigation.navigate('ThemeSelection');
-      }, [navigation]);
+    const AddCalendarModal = () => {
+        const [inputValue, setInputValue] = useState('');
+        const textInputRef = useRef<TextInput>(null);
 
-    const handleTestAction = useCallback(() => {
-        setSelectedCalendarId(null);
-        setIsActionMenuVisible(false);
-    }, [selectedCalendarId]);
+        const handleSubmit = useCallback(() => {
+            if (inputValue.trim()) {
+                addCalendar(inputValue);
+                setInputValue('');
+                setShowAddCalendarModal(false);
+            }
+        }, [inputValue, addCalendar]);
+
+        return (
+            <Modal
+                transparent
+                visible={showAddCalendarModal}
+                onRequestClose={() => setShowAddCalendarModal(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowAddCalendarModal(false)}>
+                    <View style={[localStyles.modalOverlay, { paddingTop: insets.top }]}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                            style={localStyles.keyboardAvoid}
+                            keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+                        >
+                            <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+                                <View style={[localStyles.modalContent, { backgroundColor: colors.primary }]}>
+                                    <TextInput
+                                        ref={textInputRef}
+                                        style={[localStyles.modalInput, { 
+                                            color: colors.text,
+                                            borderColor: colors.accent
+                                        }]}
+                                        placeholder="Название календаря"
+                                        placeholderTextColor={colors.secondaryText}
+                                        value={inputValue}
+                                        onChangeText={setInputValue}
+                                        onSubmitEditing={handleSubmit}
+                                        autoFocus
+                                    />
+                                    <MainButton
+                                        title="Создать"
+                                        onPress={handleSubmit}
+                                        icon="check"
+                                    />
+                                </View>
+                            </TouchableWithoutFeedback>
+                        </KeyboardAvoidingView>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+        );
+    };
 
     const renderCalendarItem = useCallback(({ item }: { item: Calendar }) => (
         <TouchableOpacity
@@ -74,40 +112,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
     ), [navigation, colors]);
 
-    const AddCalendarModal = () => (
-        <Modal
-            transparent
-            visible={showAddCalendarModal}
-            onRequestClose={() => setShowAddCalendarModal(false)}
-        >
-            <TouchableWithoutFeedback onPress={() => setShowAddCalendarModal(false)}>
-                <View style={localStyles.modalOverlay}>
-                    <TouchableWithoutFeedback>
-                        <View style={[localStyles.modalContent, { backgroundColor: colors.primary }]}>
-                            <Text style={[localStyles.modalTitle, { color: colors.text }]}>New Calendar</Text>
-                            <TextInput
-                                style={[localStyles.modalInput, { color: colors.accentText, borderColor: colors.accent }]}
-                                placeholder="Calendar name"
-                                placeholderTextColor={colors.text}
-                                value={newCalendarName}
-                                onChangeText={setNewCalendarName}
-                                autoFocus
-                            />
-                            <MainButton
-                                title="Create"
-                                onPress={() => {
-                                    handleAddCalendar();
-                                    setShowAddCalendarModal(false);
-                                }}
-                                icon="check"
-                            />
-                        </View>
-                    </TouchableWithoutFeedback>
-                </View>
-            </TouchableWithoutFeedback>
-        </Modal>
-    );
-
     return (
         <View style={[globalStyles.container, { backgroundColor: colors.primary }]}>
             <MainButton 
@@ -117,8 +121,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             />
             
             <MainButton 
+                title="Создать общее событие"
+                onPress={() => navigation.navigate('AddEvent', { isShared: true })}
+                icon="event"
+            />
+
+            <MainButton 
                 title="Выбрать тему" 
-                onPress={handleThemeNavigation}
+                onPress={() => navigation.navigate('ThemeSelection')}
                 icon="palette"
             />
 
@@ -132,7 +142,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <ActionMenu
                 isVisible={isActionMenuVisible}
                 onDeleteCalendar={handleDeleteCalendar}
-                onTestButton={handleTestAction}
                 onClose={() => setIsActionMenuVisible(false)}
             />
 
@@ -153,26 +162,27 @@ const localStyles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    keyboardAvoid: {
+        width: '100%',
         alignItems: 'center',
     },
     modalContent: {
         width: '80%',
+        maxHeight: '80%',
         padding: 20,
         borderRadius: 10,
         elevation: 5,
     },
-    modalTitle: {
-        fontSize: 20,
-        marginBottom: 15,
-        textAlign: 'center',
-    },
     modalInput: {
         borderWidth: 1,
-        borderRadius: 5,
-        padding: 10,
-        marginBottom: 15,
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 16,
+        fontSize: 16,
     },
     listContent: {
         paddingHorizontal: 10,

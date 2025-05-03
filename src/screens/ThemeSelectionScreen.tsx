@@ -16,6 +16,7 @@ interface ThemeSelectionScreenProps {
 const ThemeSelectionScreen: React.FC<ThemeSelectionScreenProps> = ({ navigation }) => {
   const { setTheme, colors } = useTheme();
 
+
   const renderThemeItem = ({ item }: { item: Theme }) => {
     const themeColors = getThemeColorsPreview(item);
     

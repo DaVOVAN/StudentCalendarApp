@@ -44,7 +44,7 @@ const EventListScreen: React.FC<EventListScreenProps> = ({ route }) => {
             title={item.title}
             onPress={() => handleViewEvent(item.id)}
             style={localStyles.eventItem}
-            textStyle={{ color: colors.text }}
+            textStyle={{ color: colors.accentText }}
             icon="event"
         />
     ), [handleViewEvent, colors]);
