@@ -1,3 +1,4 @@
+// src/components/AuthModal.tsx
 import React, { useState, useEffect } from 'react';
 import { Modal, View, TextInput, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useForm, Controller, SubmitHandler, FieldErrors } from 'react-hook-form';

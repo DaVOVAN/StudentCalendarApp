@@ -255,12 +255,10 @@ const localStyles = StyleSheet.create({
         alignItems: 'center',
     },
     modalContent: {
-        width: '80%',
-        maxHeight: '80%',
-        minHeight: '45%',
-        padding: 20,
-        borderRadius: 10,
-        elevation: 5,
+      width: '80%',
+      borderRadius: 16,
+      padding: 20,
+      elevation: 5,
     },
     modalInput: {
         borderWidth: 1,
