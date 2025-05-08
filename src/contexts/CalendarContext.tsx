@@ -19,7 +19,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     const updateCalendars = useCallback(async (updater: (prevCalendars: Calendar[]) => Calendar[]) => {
         setCalendars(prev => {
             const newCalendars = updater(prev);
-            saveCalendars(newCalendars); // Автоматическое сохранение
+            saveCalendars(newCalendars);
             return newCalendars;
         });
     }, []);
@@ -62,7 +62,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
             addCalendar,
             addEvent,
             deleteCalendar,
-            updateCalendars // Экспортируем новую функцию
+            updateCalendars
         }}>
             {children}
         </CalendarContext.Provider>

@@ -4,29 +4,37 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.0.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/datetimepicker": "latest",
     "@react-native-picker/picker": "2.11.0",
     "@react-navigation/native": "^7.1.6",
     "@react-navigation/stack": "^7.2.10",
+    "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "expo": "^53.0.5",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
+    "react-hook-form": "^7.56.2",
     "react-native": "0.79.2",
     "react-native-calendars": "^1.1311.1",
     "react-native-date-picker": "^5.0.12",
+    "react-native-immersive": "^2.0.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
-    "react-native-vector-icons": "^10.2.0"
+    "react-native-vector-icons": "^10.2.0",
+    "undefined": "@hookform/resolvers/yup",
+    "yup": "^1.6.1",
+    "expo-navigation-bar": "~4.2.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "latest",
     "@types/react": "~19.0.10",
     "typescript": "^5.3.3"
   },
