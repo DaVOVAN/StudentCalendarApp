@@ -2,8 +2,8 @@
 export interface Calendar {
   id: string;
   name: string;
-  color: string;
   events: CalendarEvent[];
+  ownerId?: string;
 }
 
 export type EventType = 'laboratory' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'event' | 'commission' | 'other';

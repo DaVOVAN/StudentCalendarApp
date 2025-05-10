@@ -1,9 +1,9 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api/client';
 import { Alert } from 'react-native';
+import axios from 'axios';
 
 interface User {
   id: string;
@@ -28,19 +28,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const initAuth = async () => {
     try {
-      const [accessToken, storedUser] = await Promise.all([
+      const [accessToken, refreshToken, storedUser] = await Promise.all([
         AsyncStorage.getItem('@access_token'),
+        AsyncStorage.getItem('@refresh_token'),
         AsyncStorage.getItem('@user'),
       ]);
 
-      if (accessToken && storedUser) {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
+      console.log('[AUTH INIT] Stored tokens:', { 
+        accessToken: !!accessToken,
+        refreshToken: !!refreshToken,
+        user: storedUser 
+      });
+
+      if (refreshToken) {
+        try {
+          // Проверяем валидность refresh token
+          const response = await axios.post(
+            'http://46.146.235.134:3000/api/auth/refresh',
+            { refreshToken }
+          );
+          
+          await AsyncStorage.multiSet([
+            ['@access_token', response.data.accessToken],
+            ['@refresh_token', response.data.refreshToken]
+          ]);
+          
+          console.log('[AUTH INIT] Tokens refreshed successfully');
+          const userData = JSON.parse(storedUser || '{}');
+          setUser(userData);
+        } catch (refreshError) {
+          console.log('[AUTH INIT] Refresh failed, creating guest session');
+          await createGuestSession();
+        }
       } else {
+        console.log('[AUTH INIT] No tokens, creating guest session');
         await createGuestSession();
       }
     } catch (error) {
-      console.error('Auth init error:', error);
+      console.error('[AUTH INIT] Critical error:', error);
       await createGuestSession();
     } finally {
       setIsLoading(false);
@@ -63,35 +88,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const login = async (username: string, password: string) => {
-    try {
-      const response = await api.post('/auth/login', { username, password });
-      await storeAuthData(response.data);
-      setUser(response.data.user);
-    } catch (error) {
-      throw error;
-    }
-  };
+  try {
+    await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+    
+    const response = await api.post('/auth/login', { username, password });
+    await storeAuthData(response.data);
+    setUser(response.data.user);
+  } catch (error) {
+    throw error;
+  }
+};
 
-  const register = async (username: string, password: string) => {
-    try {
-      const response = await api.post('/auth/register', { username, password });
-      await storeAuthData(response.data);
-      setUser(response.data.user);
-    } catch (error) {
-      throw error;
-    }
-  };
+const register = async (username: string, password: string) => {
+  try {
+    await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+    
+    const response = await api.post('/auth/register', { username, password });
+    await storeAuthData(response.data);
+    setUser(response.data.user);
+  } catch (error) {
+    throw error;
+  }
+};
 
   const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Ошибка выхода:', error);
-    } finally {
-      await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-      await createGuestSession();
-    }
-  };
+  try {
+    await api.post('/auth/logout');
+    await AsyncStorage.multiRemove([
+      '@access_token',
+      '@refresh_token',
+      '@user',
+      '@calendars'
+    ]);
+    await createGuestSession();
+  } catch (error) {
+    console.error('Ошибка выхода:', error);
+  }
+};
 
   const refreshSession = async () => {
     try {
