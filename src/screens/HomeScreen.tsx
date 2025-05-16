@@ -13,20 +13,46 @@ import ActionMenu from '../components/ActionMenu';
 import AuthModal from '../components/AuthModal';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface HomeScreenProps {
     navigation: StackNavigationProp<RootStackParamList, 'Home'>;
 }
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-    const { calendars, addCalendar, deleteCalendar } = useCalendar();
+    const { calendars, addCalendar, deleteCalendar, syncCalendars } = useCalendar();
     const { colors } = useTheme();
-    const { user, logout } = useAuth();
+    const { user, logout, createGuestSession } = useAuth();
     const [selectedCalendarId, setSelectedCalendarId] = useState<string | null>(null);
     const [isActionMenuVisible, setIsActionMenuVisible] = useState(false);
     const [showAddCalendarModal, setShowAddCalendarModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const insets = useSafeAreaInsets();
+
+    useFocusEffect(
+        useCallback(() => {
+            const fetchData = async () => {
+                try {
+                    console.log("Синхронизация календарей...");
+                    await syncCalendars();
+                } catch (error) {
+                    console.error('Ошибка синхронизации:', error);
+                }
+            };
+            fetchData();
+        }, [syncCalendars])
+    );
+
+    useEffect(() => {
+        const checkAuthStatus = async () => {
+            const refreshToken = await AsyncStorage.getItem('@refresh_token');
+            if (!refreshToken && user?.isGuest) {
+            await createGuestSession();
+            }
+        };
+        checkAuthStatus();
+    }, []);
 
     const handleDeleteCalendar = useCallback(() => {
         if (selectedCalendarId) {

@@ -1,260 +1,325 @@
 // src/screens/ViewEventScreen.tsx
-import React from 'react';
-import { View, Text, StyleSheet, Linking, ScrollView } from 'react-native';
-import { useCalendar } from '../contexts/CalendarContext';
-import { useTheme } from '../contexts/ThemeContext';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Linking } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
-import { format } from 'date-fns';
+import { useTheme } from '../contexts/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { ru } from 'date-fns/locale';
+import { format } from 'date-fns';
+import api from '../api/client';
+import { translateEventType, getEventIcon } from '../utils/eventUtils';
+import { TouchableOpacity } from 'react-native';
+import { EventType } from '../types/types';
 
-interface ViewEventScreenProps {
-    route: RouteProp<RootStackParamList, 'ViewEvent'>;
-}
-
-const ViewEventScreen: React.FC<ViewEventScreenProps> = ({ route }) => {
-    const { calendarId, eventId } = route.params;
-    const { calendars } = useCalendar();
-    const { colors } = useTheme();
-
-    const calendar = calendars.find(c => c.id === calendarId);
-    const event = calendar?.events.find(e => e.id === eventId);
-    const validLinks = event?.links.filter(link => link.trim() !== '') || [];
-
-    const handleLinkPress = (url: string) => {
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
-        }
-        Linking.openURL(url).catch(() => {
-            alert('Could not open the URL');
-        });
-    };
-
-    if (!event) {
-        return (
-            <View style={[styles.container, { backgroundColor: colors.primary }]}>
-                <Text style={[styles.errorText, { color: colors.text }]}>Event not found</Text>
-            </View>
-        );
-    }
-
-    return (
-        <ScrollView 
-            contentContainerStyle={[styles.container, { backgroundColor: colors.primary }]}
-            showsVerticalScrollIndicator={false}
-        >
-            {/* Header Section */}
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>{event.title}</Text>
-                {event.isEmergency && (
-                    <View style={[styles.emergencyBadge, { backgroundColor: colors.emergency }]}>
-                        <Text style={styles.emergencyText}>Urgent</Text>
-                    </View>
-                )}
-            </View>
-
-            {/* Main Content */}
-            <View style={styles.content}>
-                {/* Date & Time */}
-                <View style={styles.section}>
-                    {event.startDate && (
-                        <View style={styles.row}>
-                            <MaterialIcons 
-                                name="calendar-today" 
-                                size={20} 
-                                color={colors.accent} 
-                                style={styles.icon}
-                            />
-                            <Text style={[styles.label, { color: colors.secondaryText }]}>
-                                {format(new Date(event.startDate), 'EEE, MMM d · HH:mm')}
-                            </Text>
-                        </View>
-                    )}
-                    {event.endDate && (
-                        <View style={styles.row}>
-                            <MaterialIcons 
-                                name="timer" 
-                                size={20} 
-                                color={colors.accent} 
-                                style={styles.icon}
-                            />
-                            <Text style={[styles.label, { color: colors.secondaryText }]}>
-                                {format(new Date(event.endDate), 'EEE, MMM d · HH:mm')}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* Event Details */}
-                <View style={styles.divider} />
-
-                <View style={styles.section}>
-                    <DetailRow 
-                        icon="description" 
-                        label="Description" 
-                        value={event.description}
-                        color={colors.accent}
-                        textColor={colors.text}
-                    />
-                    
-                    <DetailRow 
-                        icon="category" 
-                        label="Type" 
-                        value={event.eventType}
-                        color={colors.accent}
-                        textColor={colors.text}
-                    />
-
-                    {event.location && (
-                        <DetailRow 
-                            icon="place" 
-                            label="Location" 
-                            value={event.location}
-                            color={colors.accent}
-                            textColor={colors.text}
-                        />
-                    )}
-                </View>
-
-                {/* Links Section */}
-                {validLinks.length > 0 && (
-                    <>
-                        <View style={styles.divider} />
-                        <View style={styles.section}>
-                            <Text style={[styles.sectionTitle, { color: colors.text }]}>Links</Text>
-                            {validLinks.map((link, index) => (
-                                <View key={index} style={styles.linkContainer}>
-                                    <MaterialIcons 
-                                        name="link" 
-                                        size={16} 
-                                        color={colors.accent} 
-                                        style={styles.icon}
-                                    />
-                                    <Text 
-                                        style={[styles.linkText, { color: colors.accent }]}
-                                        onPress={() => handleLinkPress(link)}
-                                    >
-                                        {link}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
-                    </>
-                )}
-            </View>
-        </ScrollView>
-    );
+type EventDetails = {
+  id: string;
+  title: string;
+  type: EventType;
+  start_datetime: string;
+  end_datetime?: string;
+  location?: string;
+  description?: string;
+  links?: string[];
+  is_emergency: boolean;
 };
 
-const DetailRow = ({ icon, label, value, color, textColor }: any) => (
-    <View style={styles.detailRow}>
-        <MaterialIcons 
-            name={icon} 
-            size={18} 
-            color={color} 
-            style={styles.icon}
-        />
-        <View style={styles.detailText}>
-            <Text style={[styles.detailLabel, { color: textColor }]}>{label}</Text>
-            <Text style={[styles.detailValue, { color: textColor }]}>{value}</Text>
+const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEvent'> }> = ({ route }) => {
+  const { calendarId, eventId } = route.params;
+  const { colors } = useTheme();
+  const [event, setEvent] = useState<EventDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        console.log('Fetching event with ID:', eventId);
+        const response = await api.get(`/events/${eventId}`);
+        console.log('API Response:', response.data);
+        
+        if (!response.data) throw new Error('Событие не найдено');
+        
+        const processedEvent: EventDetails = {
+          id: response.data.id,
+          title: response.data.title,
+          type: response.data.event_type,
+          start_datetime: response.data.start_datetime,
+          end_datetime: response.data.end_datetime,
+          location: response.data.location,
+          description: response.data.description,
+          links: response.data.links,
+          is_emergency: response.data.is_emergency
+        };
+        
+        setEvent(processedEvent);
+      } catch (err) {
+        console.error('Error fetching event:', err);
+        setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [eventId]);
+
+  const formatSafeDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'd MMMM yyyy, HH:mm', { locale: ru });
+    } catch {
+      return 'Некорректная дата';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.primary }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.errorText, { color: colors.emergency }]}>{error}</Text>
+      </View>
+    );
+  }
+
+  if (!event) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.errorText, { color: colors.text }]}>Событие не найдено</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView 
+      contentContainerStyle={[styles.container, { backgroundColor: colors.primary }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.contentWrapper}>
+        {/* Заголовок */}
+        <View style={styles.header}>
+          <MaterialIcons 
+            name={getEventIcon(event.type)} 
+            size={32} 
+            color={colors.accent} 
+            style={styles.eventIcon}
+          />
+          <View style={styles.titleWrapper}>
+            <Text style={[styles.title, { color: colors.text }]}>{event.title}</Text>
+            {event.is_emergency && (
+              <View style={[styles.emergencyBadge, { backgroundColor: colors.emergency }]}>
+                <MaterialIcons name="warning" size={16} color={colors.accentText} />
+                <Text style={[styles.emergencyText, { color: colors.accentText }]}>Важное</Text>
+              </View>
+            )}
+          </View>
         </View>
+
+        {/* Информационная панель */}
+        <View style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
+
+          <View style={styles.infoRow}>
+            <MaterialIcons name="calendar-today" size={20} color={colors.text} />
+            <Text style={[styles.infoText, { color: colors.text }]}>
+              {formatSafeDate(event.start_datetime)}
+            </Text>
+          </View>
+
+          {event.end_datetime && (
+            <>
+              <View style={styles.separator} />
+              <View style={styles.infoRow}>
+                <MaterialIcons name="timer-off" size={20} color={colors.text} />
+                <Text style={[styles.infoText, { color: colors.text }]}>
+                  {formatSafeDate(event.end_datetime)}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Детали */}
+        {event.location && (
+          <Section title="Место проведения" icon="place">
+            <Text style={[styles.detailText, { color: colors.text }]}>{event.location}</Text>
+          </Section>
+        )}
+
+        {event.description && (
+          <Section title="Описание" icon="description">
+            <Text style={[styles.detailText, { color: colors.text }]}>{event.description}</Text>
+          </Section>
+        )}
+
+        {event.links && event.links.length > 0 && (
+          <Section title="Ссылки" icon="link">
+            {event.links.map((link, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => Linking.openURL(link.startsWith('http') ? link : `https://${link}`)}
+                style={styles.linkItem}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons 
+                  name="launch" 
+                  size={20} 
+                  color={colors.accent} 
+                  style={styles.linkIcon}
+                />
+                <Text 
+                  style={[styles.linkText, { color: colors.accent }]}
+                  numberOfLines={1}
+                >
+                  {link}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </Section>
+        )}
+      </View>
+    </ScrollView>
+  );
+};
+
+// Новый компонент Section для повторяющихся секций
+const Section: React.FC<{ 
+  title: string; 
+  icon: keyof typeof MaterialIcons.glyphMap;
+  children: React.ReactNode 
+}> = ({ title, icon, children }) => {
+  const { colors } = useTheme();
+  
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <MaterialIcons 
+          name={icon} 
+          size={24} 
+          color={colors.text} 
+          style={styles.sectionIcon}
+        />
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          {title}
+        </Text>
+      </View>
+      <View style={[styles.sectionContent, { backgroundColor: colors.secondary }]}>
+        {children}
+      </View>
     </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
-    container: {
-        flexGrow: 1,
-        padding: 24,
-    },
-    header: {
-        marginBottom: 24,
-        position: 'relative',
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '600',
-        lineHeight: 34,
-        marginRight: 100,
-    },
-    emergencyBadge: {
-        position: 'absolute',
-        right: 0,
-        top: 4,
-        paddingVertical: 4,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-    },
-    emergencyText: {
-        color: '#fff',
-        fontWeight: '500',
-        fontSize: 14,
-    },
-    content: {
-        backgroundColor: '#FFFFFF10',
-        borderRadius: 16,
-        padding: 20,
-    },
-    section: {
-        marginVertical: 12,
-    },
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 8,
-    },
-    icon: {
-        marginRight: 12,
-        width: 24,
-        textAlign: 'center',
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: '500',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#FFFFFF20',
-        marginVertical: 16,
-    },
-    detailRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginVertical: 12,
-    },
-    detailText: {
-        flex: 1,
-    },
-    detailLabel: {
-        fontSize: 12,
-        fontWeight: '500',
-        textTransform: 'uppercase',
-        marginBottom: 4,
-        opacity: 0.8,
-    },
-    detailValue: {
-        fontSize: 16,
-        lineHeight: 22,
-    },
-    linkContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 8,
-    },
-    linkText: {
-        fontSize: 16,
-        textDecorationLine: 'underline',
-        flexShrink: 1,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 16,
-    },
-    errorText: {
-        fontSize: 18,
-        textAlign: 'center',
-        marginTop: 40,
-    },
+  container: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  contentWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  eventIcon: {
+    marginRight: 16,
+  },
+  titleWrapper: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emergencyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  emergencyText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  infoCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  infoText: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginVertical: 8,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  sectionIcon: {
+    marginRight: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  sectionContent: {
+    borderRadius: 12,
+    padding: 16,
+  },
+  detailText: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  linkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  linkIcon: {
+    marginRight: 12,
+  },
+  linkText: {
+    fontSize: 16,
+    flex: 1,
+    textDecorationLine: 'underline',
+  },
+  errorText: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 40,
+  },
 });
 
 export default ViewEventScreen;

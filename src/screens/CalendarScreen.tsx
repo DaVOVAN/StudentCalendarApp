@@ -1,5 +1,5 @@
 // src/screens/CalendarScreen.tsx
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,7 +12,8 @@ import {
   eachDayOfInterval, 
   startOfMonth, 
   subMonths, 
-  addMonths 
+  addMonths,
+  isSameDay
 } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { EventType } from '../types/types';
+import { useFocusEffect } from '@react-navigation/native';
 
 const CalendarDay: React.FC<{
     date: Date;
@@ -59,7 +61,7 @@ const CalendarDay: React.FC<{
 const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { calendarId } = route.params;
-    const { calendars, addEvent, updateCalendars } = useCalendar();
+    const { calendars, addEvent, updateCalendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar();
     const { colors } = useTheme();
     
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -74,35 +76,58 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const eventsForCalendar = calendar?.events || [];
 
     const eventsByDate = useMemo(() => {
-        const groupedEvents: Record<string, CalendarEvent[]> = {};
-        eventsForCalendar.forEach(event => {
-            const baseDate = event.attachToEnd 
-                ? event.endDate || event.startDate 
-                : event.startDate || event.endDate;
-            
-            if (!baseDate) return;
+    const groupedEvents: Record<string, CalendarEvent[]> = {};
+    
+    eventsForCalendar.forEach(event => {
+        if (event.sync_status === 'pending') return;
+        
+        const baseDate = event.attach_to_end && event.end_datetime 
+        ? event.end_datetime 
+        : event.start_datetime;
 
-            const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
-            groupedEvents[dateKey] = groupedEvents[dateKey] || [];
-            groupedEvents[dateKey].push(event);
-        });
-        return groupedEvents;
+        if (!baseDate) return;
+        
+        const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
+        groupedEvents[dateKey] = groupedEvents[dateKey] || [];
+        groupedEvents[dateKey].push(event);
+    });
+
+    return groupedEvents;
     }, [eventsForCalendar]);
 
-    const renderWeekDays = () => (
-        <View style={styles.weekDaysContainer}>
-            {[...Array(7)].map((_, i) => (
-                <Text key={i} style={[styles.weekDay, { color: colors.text }]}>
-                    {format(addDays(startDate, i), 'EEEEEE', { locale: ru })}
-                </Text>
-            ))}
-        </View>
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (calendarId) {
+            syncEvents(calendarId);
+            syncCalendars();
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [calendarId, syncEvents, syncCalendars]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const fetchEvents = async () => {
+                try {
+                    await syncEvents(calendarId);
+                    console.log("Синхронизация событий...");
+                    
+                } catch (error) {
+                    console.error('Ошибка синхронизации событий:', error);
+                }
+            };
+            fetchEvents();
+        }, [syncEvents, calendarId])
     );
 
     const handleDatePress = useCallback((date: Date) => {
+        if (!calendarId) return;
+        
         navigation.navigate('EventList', { 
-            calendarId, 
-            selectedDate: date.toISOString() 
+            calendarId: calendarId,
+            selectedDate: date.toISOString(),
+            validatedDate: date.toISOString()
         });
     }, [calendarId, navigation]);
 
@@ -110,47 +135,6 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
         setSelectedDate(date);
         setIsActionMenuVisible(true);
     }, []);
-
-    const handleAddEvent = useCallback(() => {
-        setIsActionMenuVisible(false);
-        selectedDate && navigation.navigate('AddEvent', { 
-            calendarId, 
-            selectedDate: selectedDate.toISOString() 
-        });
-    }, [calendarId, selectedDate, navigation]);
-
-    const handleClearDate = useCallback((date: Date) => {
-        const dateKey = format(date, 'yyyy-MM-dd');
-        
-        updateCalendars(prevCalendars => 
-            prevCalendars.map(calendar => ({
-                ...calendar,
-                events: calendar.events.filter(event => {
-                    const eventDate = event.attachToEnd 
-                        ? event.endDate || event.startDate 
-                        : event.startDate || event.endDate;
-                    return eventDate ? format(new Date(eventDate), 'yyyy-MM-dd') !== dateKey : true;
-                })
-            }))
-        );
-    }, [updateCalendars]);
-
-    const handleAddTestEvent = useCallback(() => {
-        if (!calendarId || !selectedDate) return;
-    
-        const testEvent = {
-            title: 'Тест',
-            description: 'Тестовое описание',
-            eventType: 'other' as EventType,
-            startDate: selectedDate.toISOString(),
-            attachToEnd: false,
-            links: [],
-            isEmergency: false
-        };
-    
-        addEvent(calendarId, testEvent);
-        setIsActionMenuVisible(false);
-    }, [calendarId, selectedDate, addEvent]);
 
     return (
         <View style={[styles.container, { backgroundColor: colors.primary }]}>
@@ -169,13 +153,11 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
                 </View>
             </View>
 
-            {renderWeekDays()}
             <View style={styles.grid}>
                 {eachDayOfInterval({ start: startDate, end: endDate }).map((date, index) => {
-                    const dateKey = format(date, 'yyyy-MM-dd');
-                    const hasEvent = !!eventsByDate[dateKey];
-                    const isEmergency = eventsByDate[dateKey]?.some(e => e.isEmergency);
                     const isCurrentMonth = isSameMonth(date, currentMonth);
+                    const hasEvent = Object.keys(eventsByDate).includes(format(date, 'yyyy-MM-dd'));
+                    const isEmergency = eventsByDate[format(date, 'yyyy-MM-dd')]?.some(e => e.is_emergency);
 
                     return (
                         <CalendarDay
@@ -192,12 +174,14 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
             </View>
 
             <ActionMenu
-                onAddTestEvent={handleAddTestEvent}
                 isVisible={isActionMenuVisible}
-                selectedDate={selectedDate}
-                onClearDate={handleClearDate}
-                hasEvents={!!selectedDate && !!eventsByDate[format(selectedDate, 'yyyy-MM-dd')]}
                 onClose={() => setIsActionMenuVisible(false)}
+                selectedDate={selectedDate}
+                onClearDate={(date) => {
+                    if (calendarId) {
+                    clearDateEvents(calendarId, date);
+                }}}
+                onAddTestEvent={(date) => calendarId && addTestEvent(calendarId, date)}
             />
         </View>
     );
@@ -227,19 +211,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
         marginHorizontal: 16,
         textTransform: 'capitalize',
-    },
-    weekDaysContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-        paddingHorizontal: 4,
-    },
-    weekDay: {
-        flex: 1,
-        textAlign: 'center',
-        fontSize: 12,
-        fontWeight: '500',
-        textTransform: 'uppercase',
     },
     grid: {
         flexDirection: 'row',

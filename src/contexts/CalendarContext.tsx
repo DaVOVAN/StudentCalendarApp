@@ -1,43 +1,65 @@
 // src/contexts/CalendarContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Calendar, CalendarEvent } from '../types/types';
+import { Calendar, CalendarEvent, EventType } from '../types/types';
 import { loadCalendars, saveCalendars } from '../utils/storage';
 import api from '../api/client';
 import { Alert } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from './AuthContext';
 
 interface CalendarContextType {
     calendars: Calendar[];
     addCalendar: (name: string) => void;
-    addEvent: (calendarId: string, event: Omit<CalendarEvent, 'id'>) => void;
+    addEvent: (calendarId: string, event: Omit<CalendarEvent, 'id'>) => Promise<void>;
     deleteCalendar: (calendarId: string) => void;
     updateCalendars: (updater: (prevCalendars: Calendar[]) => Calendar[]) => Promise<void>;
+    syncEvents: (calendarId: string) => Promise<void>;
+    clearDateEvents: (calendarId: string, date: Date) => Promise<void>;
+    addTestEvent: (calendarId: string, date: Date) => Promise<void>;
+    syncCalendars: () => Promise<void>;
 }
 
 const CalendarContext = createContext<CalendarContextType>({} as CalendarContextType);
 
-const mergeCalendars = (serverCalendars: any[], localCalendars: Calendar[]): Calendar[] => {
-    const serverMap = new Map(serverCalendars.map(c => [c.id, c]));
-    const merged = localCalendars.map(local => {
-        const server = serverMap.get(local.id);
-        return server ? { ...local, ...server } : local;
-    });
-    serverCalendars.forEach(server => {
-        if (!merged.some(c => c.id === server.id)) {
-            merged.push({
-                id: server.id,
-                name: server.name,
-                color: '#007AFF',
-                events: []
-            });
-        }
-    });
-    return merged;
-};
-
 export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [calendars, setCalendars] = useState<Calendar[]>([]);
     const { user: currentUser } = useAuth();
+
+    const mergeCalendars = (serverCalendars: any[], localCalendars: Calendar[]): Calendar[] => {
+        const serverMap = new Map(serverCalendars.map(c => [c.id, c]));
+        
+        return serverCalendars.map(serverCal => ({
+            id: serverCal.id,
+            name: serverCal.name,
+            events: localCalendars.find(lc => lc.id === serverCal.id)?.events || [],
+            ownerId: serverCal.owner_id
+        }));
+    };
+
+    const mergeEvents = (local: CalendarEvent[], server: CalendarEvent[]): CalendarEvent[] => {
+    const serverMap = new Map(
+        server.map(e => [
+        e.id, 
+        {
+            ...e,
+            start_datetime: e.start_datetime || '',
+            end_datetime: e.end_datetime || '',
+            syncStatus: 'synced' as const
+        }
+        ])
+    );
+
+    const localPending = local.filter((e): e is CalendarEvent => 
+        e.sync_status === 'pending' && !serverMap.has(e.id)
+    );
+
+    return [
+        ...localPending,
+        ...Array.from(serverMap.values()).map(e => ({
+        ...e,
+        syncStatus: 'synced' as const
+        }))
+    ];
+    };
 
     const updateCalendars = useCallback(async (updater: (prevCalendars: Calendar[]) => Calendar[]) => {
         setCalendars(prev => {
@@ -47,106 +69,197 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
         });
     }, []);
 
+    const syncEvents = useCallback(async (calendarId: string) => {
+        try {
+            const response = await api.get(`/calendars/${calendarId}/events`);
+            const serverEvents = response.data.map((serverEvent: any) => ({
+            ...serverEvent,
+            start_datetime: serverEvent.start_datetime || '',
+            end_datetime: serverEvent.end_datetime || '',
+            syncStatus: 'synced' as const
+            }));
+            
+            updateCalendars(prev => 
+            prev.map(cal => 
+                cal.id === calendarId 
+                ? { ...cal, events: mergeEvents(cal.events, serverEvents) } 
+                : cal
+            )
+            );
+        } catch (error) {
+            console.error('Ошибка синхронизации:', {
+            error,
+            calendarId,
+            timestamp: new Date().toISOString()
+            });
+            Alert.alert('Ошибка', 'Не удалось загрузить события');
+        }
+    }, [updateCalendars]);
+
     const addCalendar = useCallback((name: string) => {
         if (!currentUser?.id) {
             Alert.alert('Ошибка', 'Пользователь не авторизован');
             return;
         }
-
         updateCalendars(prev => {
             const tempId = `temp_${Date.now()}`;
             const newCalendar: Calendar = {
-            id: tempId,
-            name,
-            events: [],
-            ownerId: currentUser.id
+                id: tempId,
+                name,
+                events: [],
+                ownerId: currentUser.id
             };
-
             api.post('/calendars', { name })
-            .then(response => {
-                updateCalendars(prevCalendars => 
-                prevCalendars.map(c => 
-                    c.id === tempId ? { 
-                    ...c, 
-                    id: response.data.id,
-                    ownerId: currentUser.id
-                    } : c
-                )
-                );
-            })
-            .catch(error => {
-                updateCalendars(prev => prev.filter(c => c.id !== tempId));
-                Alert.alert('Ошибка', 'Не удалось создать календарь');
-            });
-
+                .then(response => {
+                    updateCalendars(prevCalendars => 
+                        prevCalendars.map(c => 
+                            c.id === tempId ? { ...c, id: response.data.id } : c
+                        )
+                    );
+                })
+                .catch(error => {
+                    updateCalendars(prev => prev.filter(c => c.id !== tempId));
+                    Alert.alert('Ошибка', 'Не удалось создать календарь');
+                });
             return [...prev, newCalendar];
         });
     }, [currentUser?.id, updateCalendars]);
 
-    const addEvent = useCallback((calendarId: string, event: Omit<CalendarEvent, 'id'>) => {
-        updateCalendars(prev => prev.map(cal => 
+    const addEvent = useCallback(async (calendarId: string, event: Omit<CalendarEvent, 'id'>) => {
+    const tempId = `temp_${Date.now()}`;
+    try {
+        const newEvent: CalendarEvent = { 
+        ...event,
+        id: tempId,
+        sync_status: 'pending' as const
+        };
+        
+        updateCalendars(prev => 
+        prev.map(cal => 
             cal.id === calendarId 
-                ? { ...cal, events: [...cal.events, { ...event, id: Date.now().toString() }] } 
-                : cal
-        ));
+            ? { ...cal, events: [...cal.events, newEvent] }
+            : cal
+        )
+        );
+
+        const response = await api.post<CalendarEvent>('/events', {
+        ...event,
+        calendar_id: calendarId
+        });
+
+        updateCalendars(prev => 
+        prev.map(cal => 
+            cal.id === calendarId 
+            ? { 
+                ...cal, 
+                events: cal.events.map(e => 
+                    e.id === tempId 
+                    ? { ...response.data, syncStatus: 'synced' as const }
+                    : e
+                )
+                } 
+            : cal
+        )
+        );
+    } catch (error) {
+        updateCalendars(prev => 
+        prev.map(cal => 
+            cal.id === calendarId 
+            ? { ...cal, events: cal.events.filter(e => e.id !== tempId) }
+            : cal
+        )
+        );
+    }
     }, [updateCalendars]);
 
     const deleteCalendar = useCallback(async (calendarId: string) => {
-    let backupCalendars: Calendar[] = [];
-    
+        let backupCalendars: Calendar[] = [];
+        try {
+            backupCalendars = [...calendars];
+            updateCalendars(prev => prev.filter(cal => cal.id !== calendarId));
+            await api.delete(`/calendars/${calendarId}`);
+        } catch (error) {
+            updateCalendars(() => backupCalendars);
+            Alert.alert('Ошибка', 'Не удалось удалить календарь');
+        }
+    }, [calendars, updateCalendars]);
+
+    const clearDateEvents = useCallback(async (calendarId: string, date: Date) => {
     try {
-        const calendarToDelete = calendars.find(c => c.id === calendarId);
-        const currentUserId = currentUser?.id;
+        const dateStart = new Date(date);
+        dateStart.setHours(0, 0, 0, 0);
+        const dateEnd = new Date(date);
+        dateEnd.setHours(23, 59, 59, 999);
 
-        if (!calendarToDelete || !currentUserId) {
-        throw new Error('Календарь или пользователь не найдены');
-        }
+        console.log('Sending clear request:', {
+        calendarId,
+        start: dateStart,
+        end: dateEnd
+        });
 
-        console.log("calendarToDelete.ownerId:", calendarToDelete.ownerId);
-        console.log("currentUser?.id:", currentUser?.id);
-        if (calendarToDelete.ownerId !== currentUserId) {
-        Alert.alert('Ошибка', 'Только владелец может удалить календарь');
-        return;
-        }
+        const response = await api.post('/events/clear-events', {
+        calendarId,
+        start: dateStart.toISOString(),
+        end: dateEnd.toISOString()
+        });
 
-        backupCalendars = [...calendars];
-        
-        updateCalendars(prev => prev.filter(cal => cal.id !== calendarId));
-        
-        await api.delete(`/calendars/${calendarId}`);
-        
-    } catch (error: unknown) {
-        updateCalendars(() => backupCalendars);
-        
-        let errorMessage = 'Не удалось удалить календарь';
-        
-        if (error instanceof Error) {
-        errorMessage = error.message;
-        } else if (typeof error === 'object' && error !== null && 'response' in error) {
-        const axiosError = error as { response?: { data?: { error?: string } } };
-        errorMessage = axiosError.response?.data?.error || errorMessage;
-        }
+        console.log('Clear response:', response.data);
 
-        Alert.alert(
-        'Ошибка удаления',
-        `${errorMessage}\n\nЛокальные изменения отменены`,
-        [{ text: 'OK', style: 'destructive' }]
+        updateCalendars(prev => 
+        prev.map(cal => 
+            cal.id === calendarId 
+            ? { ...cal, events: cal.events.filter(e => {
+                const eventDate = e.attach_to_end && e.end_datetime 
+                    ? new Date(e.end_datetime)
+                    : new Date(e.start_datetime!);
+                return !(eventDate >= dateStart && eventDate <= dateEnd);
+                })}
+            : cal
+        )
         );
-
-        if (typeof error === 'object' && error !== null && 'response' in error) {
-        const axiosError = error as { response?: { status?: number } };
-        if (axiosError.response?.status === 403) {
-                try {
-                    const refreshedCalendarsResponse = await api.get('/calendars');
-                    const refreshedCalendars = refreshedCalendarsResponse.data;
-                    updateCalendars(() => refreshedCalendars);
-                } catch (refreshError) {
-                    console.error("Ошибка при обновлении календарей:", refreshError);
-                }
-            }
+    } catch (error) {
+        console.error('Ошибка очистки событий:', {
+        error,
+        requestData: {
+            calendarId,
+            date: date.toISOString()
         }
+        });
+        Alert.alert('Ошибка', 'Не удалось очистить дату');
     }
-    }, [calendars, currentUser?.id, updateCalendars]);
+    }, [updateCalendars]);
+
+    const addTestEvent = useCallback(async (calendarId: string, date: Date) => {
+        const testEvent = {
+            title: 'Тестовое событие',
+            type: 'lab' as EventType,
+            start_datetime: new Date(date).toISOString(),
+            end_datetime: new Date(date.setHours(date.getHours() + 1)).toISOString(),
+            links: [],
+            attach_to_end: false
+        };
+        try {
+            await addEvent(calendarId, testEvent);
+            Alert.alert('Успешно', 'Тестовое событие добавлено');
+        } catch (error) {
+            Alert.alert('Ошибка', 'Не удалось добавить тестовое событие');
+        }
+    }, [addEvent]);
+
+    const syncCalendars = useCallback(async () => {
+        try {
+            const response = await api.get('/calendars');
+            const serverCalendars = response.data;
+            
+            updateCalendars(prev => {
+                const merged = mergeCalendars(serverCalendars, prev);
+                saveCalendars(merged);
+                return merged;
+            });
+        } catch (error) {
+            console.error('Ошибка синхронизации календарей:', error);
+        }
+    }, [updateCalendars]);
 
     useEffect(() => {
         const initializeCalendars = async () => {
@@ -155,24 +268,25 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
                     loadCalendars(),
                     api.get('/calendars')
                 ]);
-
-                const serverCalendars = serverResponse.data.map((c: any) => ({
-                    id: c.id,
-                    name: c.name,
-                    events: [],
-                    ownerId: c.owner_id
-                }));
-
-                const merged = mergeCalendars(serverCalendars, localCalendars);
+                const merged = mergeCalendars(serverResponse.data, localCalendars);
                 setCalendars(merged);
                 saveCalendars(merged);
+                merged.forEach(cal => syncEvents(cal.id));
             } catch (error) {
                 const localCalendars = await loadCalendars();
                 setCalendars(localCalendars);
             }
         };
         initializeCalendars();
-    }, []);
+    }, [syncEvents]);
+    
+    useEffect(() => {
+        const syncInterval = setInterval(() => {
+            syncCalendars();
+        }, 60000);
+
+        return () => clearInterval(syncInterval);
+    }, [syncCalendars]);
 
     return (
         <CalendarContext.Provider value={{ 
@@ -180,7 +294,11 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
             addCalendar,
             addEvent,
             deleteCalendar,
-            updateCalendars
+            updateCalendars,
+            syncEvents,
+            clearDateEvents,
+            addTestEvent,
+            syncCalendars
         }}>
             {children}
         </CalendarContext.Provider>

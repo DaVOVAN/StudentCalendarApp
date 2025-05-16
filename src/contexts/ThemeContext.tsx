@@ -1,7 +1,6 @@
 // src/contexts/ThemeContext.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { Theme } from '../types/types';
-import { applyTheme } from '../utils/theme';
 import { getThemeStyles, getThemeColors } from '../styles/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -32,7 +31,6 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const handleSetTheme = useCallback(async (newTheme: Theme) => {
     setTheme(newTheme);
     await AsyncStorage.setItem('@theme', newTheme);
-    applyTheme(newTheme);
   }, []);
 
   const contextValue: ThemeContextType = {

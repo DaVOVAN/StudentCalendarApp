@@ -1,7 +1,10 @@
+//App.tsx
+import 'react-native-gesture-handler';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { CalendarProvider } from './src/contexts/CalendarContext';
@@ -12,9 +15,16 @@ import ViewEventScreen from './src/screens/ViewEventScreen';
 import AddEventScreen from './src/screens/AddEventScreen';
 import ThemeSelectionScreen from './src/screens/ThemeSelectionScreen';
 import { RootStackParamList } from './src/types/navigation';
-import { useTheme } from './src/contexts/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { LogBox } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from './src/contexts/ThemeContext';
+
+LogBox.ignoreLogs([
+  'Non-serializable values were found in the navigation state',
+  'Sending `onAnimatedValueUpdate` with no listeners registered'
+]);
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -23,7 +33,6 @@ const CustomHeader = ({ navigation, route }: any) => {
   const { logout } = useAuth();
 
   return (
-    <SafeAreaView edges={['top']}>
       <View style={[styles.headerContainer, { backgroundColor: colors.primary }]}>
         <View style={styles.headerContent}>
           {route.name === 'Home' ? (
@@ -46,42 +55,45 @@ const CustomHeader = ({ navigation, route }: any) => {
           marginHorizontal: route.name === 'Home' ? 0 : 16 
         }]} />
       </View>
-    </SafeAreaView>
   );
 };
 
 const App: React.FC = () => {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <CalendarProvider>
-            <NavigationContainer>
-              <Stack.Navigator
-                initialRouteName="Home"
-                screenOptions={{
-                  header: (props) => <CustomHeader {...props} />,
-                  cardStyle: { backgroundColor: '#FFFFFF' }
-                }}
-              >
-                <Stack.Screen name="Home" component={HomeScreen} />
-                <Stack.Screen name="Calendar" component={CalendarScreen} />
-                <Stack.Screen name="EventList" component={EventListScreen} />
-                <Stack.Screen name="ViewEvent" component={ViewEventScreen} />
-                <Stack.Screen name="AddEvent" component={AddEventScreen} />
-                <Stack.Screen name="ThemeSelection" component={ThemeSelectionScreen} />
-              </Stack.Navigator>
-            </NavigationContainer>
-          </CalendarProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <CalendarProvider>
+              <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+                <NavigationContainer>
+                  <Stack.Navigator
+                    initialRouteName="Home"
+                    screenOptions={{
+                      header: (props) => <CustomHeader {...props} />,
+                      cardStyle: { backgroundColor: '#FFFFFF' }
+                    }}
+                  >
+                    <Stack.Screen name="Home" component={HomeScreen} />
+                    <Stack.Screen name="Calendar" component={CalendarScreen} />
+                    <Stack.Screen name="EventList" component={EventListScreen} />
+                    <Stack.Screen name="ViewEvent" component={ViewEventScreen} />
+                    <Stack.Screen name="AddEvent" component={AddEventScreen} />
+                    <Stack.Screen name="ThemeSelection" component={ThemeSelectionScreen} />
+                  </Stack.Navigator>
+                </NavigationContainer>
+              </SafeAreaView>
+            </CalendarProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    borderBottomWidth: 0,
+    headerContainer: {
+    borderBottomWidth: 0
   },
   headerContent: {
     height: 60,
@@ -93,7 +105,7 @@ const styles = StyleSheet.create({
   button: {
     padding: 8
   },
-  separator: {
+    separator: {
     height: 2,
     width: '90%',
     alignSelf: 'center',

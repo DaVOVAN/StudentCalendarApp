@@ -9,17 +9,21 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@date-io/date-fns": "^2.16.0",
     "@hookform/resolvers": "^5.0.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/datetimepicker": "latest",
     "@react-native-picker/picker": "2.11.0",
     "@react-navigation/native": "^7.1.6",
     "@react-navigation/stack": "^7.2.10",
+    "@types/jwt-decode": "^2.2.1",
     "axios": "^1.9.0",
-    "date-fns": "^4.1.0",
+    "date-fns": "^2.29.3",
     "expo": "^53.0.5",
     "expo-navigation-bar": "~4.2.4",
     "expo-status-bar": "~2.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "jwt-decode": "^4.0.0",
     "react": "19.0.0",
     "react-hook-form": "^7.56.2",
     "react-native": "0.79.2",
@@ -36,6 +40,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@react-native-community/cli": "latest",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/react": "~19.0.10",
     "typescript": "^5.3.3"
   },

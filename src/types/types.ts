@@ -6,21 +6,20 @@ export interface Calendar {
   ownerId?: string;
 }
 
-export type EventType = 'laboratory' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'event' | 'commission' | 'other';
+export type EventType = 'lab' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'commission' | 'other';
 
 export interface CalendarEvent {
   id: string;
   title: string;
-  description: string;
-  startDate?: string;
-  startTime?: string;
-  endDate?: string;
-  endTime?: string;
+  description?: string;
+  start_datetime?: string | null;
+  end_datetime?: string | null;
   links: string[];
-  eventType: EventType;
+  type: EventType;
   location?: string;
-  isEmergency?: boolean;
-  attachToEnd?: boolean;
+  is_emergency?: boolean;
+  attach_to_end: boolean;
+  sync_status?: 'synced' | 'pending';
 }
 
 export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest' | 'military';

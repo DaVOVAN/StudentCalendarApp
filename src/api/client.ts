@@ -1,11 +1,9 @@
 // src/api/client.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
-const api = axios.create({
-  baseURL: process.env.API_URL || 'http://46.146.235.134:3000/api',
-});
 
 declare module 'axios' {
   interface InternalAxiosRequestConfig<D = any> {
@@ -13,76 +11,95 @@ declare module 'axios' {
   }
 }
 
-api.interceptors.request.use(async (config) => {
+const getUserFromToken = (accessToken: string) => {
+  try {
+    const decoded = jwtDecode<{
+      userId?: string;
+      sub?: string; 
+      username?: string;
+      is_guest?: boolean;
+    }>(accessToken);
+
+    return {
+      id: decoded.userId || decoded.sub || 'unknown',
+      displayName: decoded.username || 'Гость',
+      isGuest: decoded.is_guest || false
+    };
+  } catch (error) {
+    console.error('JWT decode error:', error);
+    return {
+      id: 'guest-fallback',
+      displayName: 'Гость',
+      isGuest: true
+    };
+  }
+};
+
+const api = axios.create({
+  baseURL: process.env.API_URL || 'http://46.146.235.134:3000/api',
+});
+
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const accessToken = await AsyncStorage.getItem('@access_token');
-  
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
-  
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  response => response,
   async (error: AxiosError) => {
     const originalRequest = error.config;
     
-    // Добавляем логирование ошибки
-    console.log('[AXIOS INTERCEPTOR] Error:', {
-      status: error.response?.status,
-      url: originalRequest?.url,
-      authHeader: originalRequest?.headers?.Authorization
-    });
-
-    if (error.response?.status === 401 && !originalRequest?._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest?._retry) {
       try {
-        console.log('[AXIOS INTERCEPTOR] Attempting token refresh...');
-        originalRequest!._retry = true;
-        
+        originalRequest._retry = true;
         const refreshToken = await AsyncStorage.getItem('@refresh_token');
+        
         if (!refreshToken) {
-          console.log('[AXIOS INTERCEPTOR] No refresh token found');
-          throw new Error('Refresh token not found');
+          throw new Error('RefreshTokenMissing');
         }
 
-        // Явно указываем полный URL для refresh-запроса
         const refreshResponse = await axios.post(
-          'http://46.146.235.134:3000/api/auth/refresh',
+          `${api.defaults.baseURL}/auth/refresh`, 
           { refreshToken },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            }
+          { 
+            headers: { 
+              'X-Request-Source': 'refresh-token',
+              'Authorization': ''
+            } 
           }
         );
 
-        console.log('[AXIOS INTERCEPTOR] Refresh response:', refreshResponse.data);
+        if (!refreshResponse.data?.accessToken) {
+          throw new Error('Invalid server response');
+        }
+
+        const user = await getUserFromToken(refreshResponse.data.accessToken);
         
         await AsyncStorage.multiSet([
           ['@access_token', refreshResponse.data.accessToken],
-          ['@refresh_token', refreshResponse.data.refreshToken]
+          ['@refresh_token', refreshToken],
+          ['@user', JSON.stringify(user)]
         ]);
 
-        // Обновляем headers в существующем экземпляре axios
-        api.defaults.headers.common.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
         
-        // Клонируем оригинальный запрос с обновленным header
-        const newRequest = {
-          ...originalRequest,
-          headers: {
-            ...originalRequest?.headers,
-            Authorization: `Bearer ${refreshResponse.data.accessToken}`
-          }
-        };
-
-        return api(newRequest);
-      } catch (refreshError) {
-        console.error('[AXIOS INTERCEPTOR] Refresh failed:', refreshError);
+        return api(originalRequest);
+      } catch (refreshError: unknown) {
+        let errorMessage = 'Unknown error';
+        if (refreshError instanceof Error) {
+          errorMessage = refreshError.message;
+          console.error('Ошибка обновления токена:', {
+            message: errorMessage,
+            stack: refreshError.stack
+          });
+        }
+        
         await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-        Alert.alert('Сессия истекла', 'Пожалуйста, войдите снова');
-        return Promise.reject(refreshError);
+        window.location.reload();
+        return Promise.reject(new Error(errorMessage));
       }
     }
     

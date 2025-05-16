@@ -1,15 +1,16 @@
 // src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { View, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { jwtDecode } from 'jwt-decode';
 import api from '../api/client';
-import { Alert } from 'react-native';
 import axios from 'axios';
 
 interface User {
   id: string;
-  username?: string;
   displayName: string;
   isGuest: boolean;
+  username?: string;
 }
 
 interface AuthContextType {
@@ -18,149 +19,225 @@ interface AuthContextType {
   register: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  isInitializing: boolean;
+  createGuestSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  const initAuth = async () => {
+  const storeAuthData = async (responseData: { 
+    accessToken: string; 
+    refreshToken: string; 
+    user?: User 
+  }) => {
     try {
-      const [accessToken, refreshToken, storedUser] = await Promise.all([
-        AsyncStorage.getItem('@access_token'),
-        AsyncStorage.getItem('@refresh_token'),
-        AsyncStorage.getItem('@user'),
-      ]);
-
-      console.log('[AUTH INIT] Stored tokens:', { 
-        accessToken: !!accessToken,
-        refreshToken: !!refreshToken,
-        user: storedUser 
-      });
-
-      if (refreshToken) {
-        try {
-          // Проверяем валидность refresh token
-          const response = await axios.post(
-            'http://46.146.235.134:3000/api/auth/refresh',
-            { refreshToken }
-          );
-          
-          await AsyncStorage.multiSet([
-            ['@access_token', response.data.accessToken],
-            ['@refresh_token', response.data.refreshToken]
-          ]);
-          
-          console.log('[AUTH INIT] Tokens refreshed successfully');
-          const userData = JSON.parse(storedUser || '{}');
-          setUser(userData);
-        } catch (refreshError) {
-          console.log('[AUTH INIT] Refresh failed, creating guest session');
-          await createGuestSession();
-        }
-      } else {
-        console.log('[AUTH INIT] No tokens, creating guest session');
-        await createGuestSession();
+      if (!responseData.accessToken || !responseData.refreshToken) {
+        throw new Error('Отсутствуют токены в ответе сервера');
       }
+
+      const userData = responseData.user || await getUserFromToken(responseData.accessToken);
+      
+      await AsyncStorage.multiSet([
+        ['@access_token', responseData.accessToken],
+        ['@refresh_token', responseData.refreshToken],
+        ['@user', JSON.stringify(userData)]
+      ]);
+      
+      setUser(userData);
+      
+      console.log('Данные аутентификации успешно сохранены');
     } catch (error) {
-      console.error('[AUTH INIT] Critical error:', error);
-      await createGuestSession();
-    } finally {
-      setIsLoading(false);
+      console.error('Ошибка сохранения данных:', {
+        error,
+        responseData: {
+          accessToken: responseData?.accessToken?.slice(0, 10) + '...',
+          refreshToken: responseData?.refreshToken?.slice(0, 10) + '...',
+          user: responseData?.user
+        }
+      });
+      throw new Error('Ошибка сохранения данных аутентификации');
     }
+  };
+
+  const getUserFromToken = async (accessToken: string): Promise<User> => {
+    const decoded: any = jwtDecode(accessToken);
+    return {
+      id: decoded.sub,
+      displayName: decoded.username || 'Гость',
+      isGuest: decoded.is_guest || false
+    };
   };
 
   const createGuestSession = async () => {
     try {
-      const response = await api.post('/auth/guest');
-      await storeAuthData({
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-        user: response.data.user
+      await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+      
+      const response = await api.post('/auth/guest', {}, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-Source': 'guest-init'
+        }
       });
-      setUser(response.data.user);
+      
+      await storeAuthData(response.data);
     } catch (error) {
-      console.error('Ошибка создания гостя:', error);
-      Alert.alert('Ошибка', 'Не удалось создать гостевую сессию');
+      console.log('Фатальная ошибка создания гостя:', error);
+      Alert.alert('Ошибка', 'Не удалось инициализировать приложение');
+    }
+  };
+
+  const initAuth = async () => {
+    try {
+      const [accessToken, refreshToken] = await AsyncStorage.multiGet([
+        '@access_token',
+        '@refresh_token'
+      ]);
+
+      if (!refreshToken[1]) {
+        return await createGuestSession();
+      }
+
+      try {
+        jwtDecode(accessToken[1]!);
+      } catch {
+        const response = await api.post('/auth/refresh', { refreshToken: refreshToken[1] }, {
+          headers: {
+            'X-Request-Source': 'refresh-token'
+          }
+        });
+        
+        await storeAuthData(response.data);
+        return;
+      }
+
+      const userData = await AsyncStorage.getItem('@user');
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+
+    } catch (error) {
+      console.log('Ошибка инициализации:', error);
+      await createGuestSession();
+    } finally {
+      setIsInitializing(false);
     }
   };
 
   const login = async (username: string, password: string) => {
-  try {
-    await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-    
-    const response = await api.post('/auth/login', { username, password });
-    await storeAuthData(response.data);
-    setUser(response.data.user);
-  } catch (error) {
-    throw error;
-  }
-};
+    try {
+      const response = await api.post('/auth/login', { username, password });
+      await storeAuthData(response.data);
+    } catch (error) {
+      throw new Error('Неверные учетные данные');
+    }
+  };
 
-const register = async (username: string, password: string) => {
-  try {
-    await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-    
-    const response = await api.post('/auth/register', { username, password });
-    await storeAuthData(response.data);
-    setUser(response.data.user);
-  } catch (error) {
-    throw error;
-  }
-};
+  const register = async (username: string, password: string) => {
+    try {
+      const response = await api.post('/auth/register', { username, password });
+      await storeAuthData(response.data);
+    } catch (error) {
+      throw new Error('Ошибка регистрации');
+    }
+  };
 
   const logout = async () => {
-  try {
-    await api.post('/auth/logout');
-    await AsyncStorage.multiRemove([
-      '@access_token',
-      '@refresh_token',
-      '@user',
-      '@calendars'
-    ]);
-    await createGuestSession();
-  } catch (error) {
-    console.error('Ошибка выхода:', error);
-  }
-};
+    try {
+      await api.post('/auth/logout');
+      const guestResponse = await api.post('/auth/guest');
+      await storeAuthData(guestResponse.data);
+    } catch (error) {
+      console.log('Ошибка выхода:', error);
+      await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+    }
+  };
 
   const refreshSession = async () => {
     try {
       const refreshToken = await AsyncStorage.getItem('@refresh_token');
+      
+      if (!refreshToken) {
+        await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+        return createGuestSession();
+      }
+
       const response = await api.post('/auth/refresh', { refreshToken });
       await storeAuthData(response.data);
     } catch (error) {
-      await logout();
-    }
-  };
+      console.log('Ошибка обновления токена:', error);
 
-  const storeAuthData = async (data: {
-    accessToken: string;
-    refreshToken: string;
-    user: User;
-  }) => {
-    await AsyncStorage.multiSet([
-      ['@access_token', data.accessToken],
-      ['@refresh_token', data.refreshToken],
-      ['@user', JSON.stringify(data.user)],
-    ]);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 400) {
+          await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+          await createGuestSession();
+        }
+      }
+      
+      throw error;
+    }
   };
 
   useEffect(() => {
     initAuth();
   }, []);
+  
+  useEffect(() => {
+    const checkTokenExpiration = async () => {
+      try {
+        const accessToken = await AsyncStorage.getItem('@access_token');
+        if (!accessToken) return;
 
-  if (isLoading) {
-    return null;
+        const decoded = jwtDecode<{ exp?: number }>(accessToken);
+        if (!decoded.exp) {
+          console.log('Токен не содержит срока действия');
+          await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+          return;
+        }
+
+        if (decoded.exp * 1000 < Date.now() + 60000) { 
+          await refreshSession();
+        }
+      } catch (error) {
+        console.log('Ошибка проверки токена:', error);
+        await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+      }
+    };
+
+    const interval = setInterval(checkTokenExpiration, 60000);
+    return () => clearInterval(interval);
+  }, [refreshSession]);
+
+  if (isInitializing) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, refreshSession }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      register, 
+      logout, 
+      refreshSession,
+      createGuestSession,
+      isInitializing
+    }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth должен использоваться внутри AuthProvider');
+  }
+  return context;
+};

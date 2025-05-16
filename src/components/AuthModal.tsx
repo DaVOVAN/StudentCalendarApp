@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import MainButton from './MainButton';
 import { loginSchema, registerSchema } from '../validations/authSchemas';
 import { useAuth } from '../contexts/AuthContext';
+import { Alert } from 'react-native';
 
 type LoginFormData = {
   username: string;
@@ -47,21 +48,29 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
     setFormKey(Date.now());
   }, [isRegistering]);
 
-  const onSubmit: SubmitHandler<LoginFormData | RegisterFormData> = async (data) => {
-    try {
-      if (isRegistering) {
-        const { username, password } = data as RegisterFormData;
-        await register(username, password);
-      } else {
-        const { username, password } = data as LoginFormData;
-        await login(username, password);
-      }
-      onClose();
-      reset();
-    } catch (error) {
-      console.error('Auth error:', error);
+const onSubmit: SubmitHandler<LoginFormData | RegisterFormData> = async (data) => {
+  try {
+    if (isRegistering) {
+      await register(data.username, data.password);
+    } else {
+      await login(data.username, data.password);
     }
-  };
+    onClose();
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Общая ошибка:", error.message);
+    } else if (typeof error === 'object' && error !== null && 'response' in error && typeof error.response === 'object' && error.response !== null && 'status' in error.response && typeof error.response.status === 'number') {
+      if (error.response.status === 409) {
+        Alert.alert('Ошибка', 'Это имя пользователя уже занято');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось выполнить регистрацию');
+      }
+    } else {
+      console.error("Неизвестная ошибка:", error);
+      Alert.alert('Ошибка', 'Произошла неизвестная ошибка');
+    }
+  }
+};
 
   return (
     <Modal
@@ -84,7 +93,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
             {isRegistering ? 'Регистрация' : 'Вход'}
           </Text>
 
-          {/* Username Field */}
           <View style={styles.inputContainer}>
             <Controller
               control={control}

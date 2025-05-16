@@ -11,9 +11,8 @@ interface ActionMenuProps {
     onClearDate?: (date: Date) => void;
     onTestButton?: () => void;
     onClose: () => void;
-    hasEvents?: boolean;
     selectedDate?: Date | null;
-    onAddTestEvent?: () => void;
+    onAddTestEvent?: (date: Date) => void;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({ 
@@ -23,7 +22,6 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
     onClearDate,
     onTestButton,
     onClose,
-    hasEvents,
     selectedDate,
     onAddTestEvent
 }) => {
@@ -33,13 +31,13 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
         ...(onAddEvent ? [{
             label: 'Добавить событие', 
             icon: 'add' as const,
-            handler: () => onAddEvent(), // Обработчик без параметров
+            handler: () => onAddEvent(),
             color: colors.accent
         }] : []),
-        ...(onClearDate && hasEvents && selectedDate ? [{
+        ...(onClearDate && selectedDate ? [{
             label: 'Очистить дату',
             icon: 'clear' as const,
-            handler: () => onClearDate(selectedDate), // Передаем дату здесь
+            handler: () => onClearDate(selectedDate),
             color: colors.emergency
         }] : []),
         ...(onDeleteCalendar ? [{
@@ -54,10 +52,10 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             handler: () => onTestButton(),
             color: colors.text
         }] : []),
-        ...(onAddTestEvent ? [{
+        ...(onAddTestEvent && selectedDate ? [{
             label: 'Быстрое тестовое событие', 
-            icon: 'bolt' as const,
-            handler: () => onAddTestEvent(),
+            icon: 'science' as const,
+            handler: () => onAddTestEvent(selectedDate),
             color: colors.accent
         }] : [])
     ];
