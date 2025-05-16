@@ -1,9 +1,12 @@
 // src/types/types.ts
+import { UserRole } from '../utils/roleUtils';
+
 export interface Calendar {
   id: string;
   name: string;
   events: CalendarEvent[];
   ownerId?: string;
+  role: UserRole;
 }
 
 export type EventType = 'lab' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'commission' | 'other';
@@ -23,3 +26,14 @@ export interface CalendarEvent {
 }
 
 export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest' | 'military';
+
+export interface CalendarInvite {
+  code: string;
+  expiresAt: string;
+}
+
+export interface CalendarMember {
+  userId: string;
+  displayName: string;
+  role: UserRole;
+}

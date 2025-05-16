@@ -16,6 +16,7 @@ export type RootStackParamList = {
     isShared?: boolean 
   };
   ThemeSelection: undefined;
+  CalendarMembers: { calendarId: string };
 };
 
 export type MainTabParamList = {

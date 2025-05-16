@@ -173,6 +173,12 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
                 })}
             </View>
 
+            <TouchableOpacity 
+            onPress={() => navigation.navigate('CalendarMembers', { calendarId })}
+            style={styles.membersButton}>
+            <MaterialIcons name="people" size={24} color={colors.text} />
+            </TouchableOpacity>
+
             <ActionMenu
                 isVisible={isActionMenuVisible}
                 onClose={() => setIsActionMenuVisible(false)}
@@ -234,6 +240,12 @@ const styles = StyleSheet.create({
         top: 2,
         right: 2,
     },
+    membersButton: {
+        position: 'absolute',
+        right: 20,
+        top: 20,
+        padding: 8,
+    }
 });
 
 export default CalendarScreen;

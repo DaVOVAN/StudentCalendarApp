@@ -1,6 +1,6 @@
 // src/contexts/CalendarContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Calendar, CalendarEvent, EventType } from '../types/types';
+import { Calendar, CalendarEvent, EventType, CalendarMember } from '../types/types';
 import { loadCalendars, saveCalendars } from '../utils/storage';
 import api from '../api/client';
 import { Alert } from 'react-native';
@@ -16,6 +16,8 @@ interface CalendarContextType {
     clearDateEvents: (calendarId: string, date: Date) => Promise<void>;
     addTestEvent: (calendarId: string, date: Date) => Promise<void>;
     syncCalendars: () => Promise<void>;
+    joinCalendar: (code: string) => Promise<void>;
+   getCalendarMembers: (calendarId: string) => Promise<CalendarMember[]>;
 }
 
 const CalendarContext = createContext<CalendarContextType>({} as CalendarContextType);
@@ -24,15 +26,17 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [calendars, setCalendars] = useState<Calendar[]>([]);
     const { user: currentUser } = useAuth();
 
-    const mergeCalendars = (serverCalendars: any[], localCalendars: Calendar[]): Calendar[] => {
-        const serverMap = new Map(serverCalendars.map(c => [c.id, c]));
-        
-        return serverCalendars.map(serverCal => ({
-            id: serverCal.id,
-            name: serverCal.name,
-            events: localCalendars.find(lc => lc.id === serverCal.id)?.events || [],
-            ownerId: serverCal.owner_id
-        }));
+    const mergeCalendars = (
+    serverCalendars: Calendar[],
+    localCalendars: Calendar[]
+    ): Calendar[] => {
+    const serverMap = new Map(serverCalendars.map(c => [c.id, c]));
+    
+    return serverCalendars.map(serverCal => ({
+        ...serverCal,
+        events: localCalendars.find(lc => lc.id === serverCal.id)?.events || [],
+        role: serverCal.role
+    }));
     };
 
     const mergeEvents = (local: CalendarEvent[], server: CalendarEvent[]): CalendarEvent[] => {
@@ -96,33 +100,40 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [updateCalendars]);
 
-    const addCalendar = useCallback((name: string) => {
-        if (!currentUser?.id) {
-            Alert.alert('Ошибка', 'Пользователь не авторизован');
-            return;
-        }
-        updateCalendars(prev => {
-            const tempId = `temp_${Date.now()}`;
-            const newCalendar: Calendar = {
-                id: tempId,
-                name,
-                events: [],
-                ownerId: currentUser.id
-            };
-            api.post('/calendars', { name })
-                .then(response => {
-                    updateCalendars(prevCalendars => 
-                        prevCalendars.map(c => 
-                            c.id === tempId ? { ...c, id: response.data.id } : c
-                        )
-                    );
-                })
-                .catch(error => {
-                    updateCalendars(prev => prev.filter(c => c.id !== tempId));
-                    Alert.alert('Ошибка', 'Не удалось создать календарь');
-                });
-            return [...prev, newCalendar];
+const addCalendar = useCallback((name: string) => {
+  if (!currentUser?.id) {
+    Alert.alert('Ошибка', 'Пользователь не авторизован');
+    return;
+  }
+
+    updateCalendars(prev => {
+        const tempId = `temp_${Date.now()}`;
+        const newCalendar: Calendar = {
+        id: tempId,
+        name,
+        events: [],
+        role: 'owner',
+        ownerId: currentUser.id
+        };
+
+        api.post('/calendars', { name })
+        .then(response => {
+            updateCalendars(prevCalendars => 
+            prevCalendars.map(c => 
+                c.id === tempId ? { 
+                ...response.data, 
+                role: 'owner',
+                events: c.events 
+                } : c
+            )
+            );
+        })
+        .catch(error => {
+            updateCalendars(prev => prev.filter(c => c.id !== tempId));
         });
+
+        return [...prev, newCalendar];
+    });
     }, [currentUser?.id, updateCalendars]);
 
     const addEvent = useCallback(async (calendarId: string, event: Omit<CalendarEvent, 'id'>) => {
@@ -247,19 +258,45 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [addEvent]);
 
     const syncCalendars = useCallback(async () => {
-        try {
-            const response = await api.get('/calendars');
-            const serverCalendars = response.data;
-            
-            updateCalendars(prev => {
-                const merged = mergeCalendars(serverCalendars, prev);
-                saveCalendars(merged);
-                return merged;
-            });
-        } catch (error) {
-            console.error('Ошибка синхронизации календарей:', error);
-        }
+    try {
+        
+        const serverResponse = await api.get('/calendars');
+        const serverCalendars: Calendar[] = serverResponse.data;
+        
+        updateCalendars(prevCalendars => {
+        
+        const merged = mergeCalendars(serverCalendars, prevCalendars);
+        
+        const filtered = merged.filter(c => 
+            serverCalendars.some(sc => sc.id === c.id)
+        );
+
+        return filtered;
+        });
+
+    } catch (error: any) {
+        console.error('[SYNC] Sync failed:', {
+        error: error.response?.data || error.message,
+        timestamp: new Date().toISOString()
+        });
+        
+        Alert.alert('Ошибка', 'Не удалось синхронизировать календари');
+    }
     }, [updateCalendars]);
+
+    const joinCalendar = useCallback(async (code: string) => {
+    try {
+        await api.post('/calendars/join', { code });
+        await syncCalendars();
+    } catch (error) {
+        throw new Error('Не удалось присоединиться к календарю');
+    }
+    }, [syncCalendars]);
+
+    const getCalendarMembers = useCallback(async (calendarId: string) => {
+    const response = await api.get(`/calendars/${calendarId}/members`);
+    return response.data;
+    }, []);
 
     useEffect(() => {
         const initializeCalendars = async () => {
@@ -298,7 +335,9 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
             syncEvents,
             clearDateEvents,
             addTestEvent,
-            syncCalendars
+            syncCalendars,
+            joinCalendar,
+            getCalendarMembers
         }}>
             {children}
         </CalendarContext.Provider>

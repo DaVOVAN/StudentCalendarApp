@@ -205,15 +205,17 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                 }
             />
 
-            <MainButton
-                title="Добавить событие"
-                onPress={() => navigation.navigate('AddEvent', { 
-                    calendarId: calendarId!, 
-                    selectedDate: safeDate.toISOString() 
-                })}
-                icon="add"
-                style={{ backgroundColor: colors.accent, marginTop: 16 }}
-            />
+            <View style = {styles.buttonContainer}>
+                <MainButton
+                    title="Добавить событие"
+                    onPress={() => navigation.navigate('AddEvent', { 
+                        calendarId: calendarId!, 
+                        selectedDate: safeDate.toISOString() 
+                    })}
+                    icon="add"
+                    style={{ backgroundColor: colors.accent, marginTop: 16 }}
+                />
+            </View>
         </SafeAreaView>
     );
 };
@@ -222,6 +224,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
+    },
+    buttonContainer: {
+        marginBottom: -42
     },
     dateTitle: {
         fontSize: 24,

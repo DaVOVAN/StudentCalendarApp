@@ -15,6 +15,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import InviteModal from '../components/InviteModal';
+import { translateRole, UserRole } from '../utils/roleUtils';
 
 interface HomeScreenProps {
     navigation: StackNavigationProp<RootStackParamList, 'Home'>;
@@ -29,6 +31,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     const [showAddCalendarModal, setShowAddCalendarModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const insets = useSafeAreaInsets();
+    const [showInviteModal, setShowInviteModal] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -158,28 +161,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     const renderCalendarItem = useCallback(({ item }: { item: Calendar }) => (
         <TouchableOpacity
             onPress={() => navigation.navigate('Calendar', { calendarId: item.id })}
-            onLongPress={() => {
-                setSelectedCalendarId(item.id);
-                setIsActionMenuVisible(true);
-            }}
-            style={[localStyles.calendarItem, { backgroundColor: colors.secondary }]}
+            style={[localStyles.calendarItem, { 
+            backgroundColor: colors.secondary,
+            borderLeftWidth: 4,
+            borderLeftColor: item.role === 'owner' ? colors.emergency : colors.accent
+            }]}
         >
-            <Text 
-            style={{ 
-                color: colors.text, 
-                fontSize: 16,
-                flexShrink: 1,
-                marginRight: 8,
-                maxWidth: '85%'
-            }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-        >
-            {item.name}
-        </Text>
-            <MaterialIcons name="calendar-today" size={20} color={colors.text} />
+            <View style={{ flex: 1 }}>
+                <Text 
+                    style={[localStyles.calendarText, { color: colors.text }]} 
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                >
+                    {item.name}
+                </Text>
+                <Text style={{ color: colors.secondaryText, fontSize: 12 }}>
+                    {translateRole(item.role || 'member')}
+                </Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
-    ), [navigation, colors]);
+    ), [colors]);
 
     return (
         <View style={[globalStyles.container, { backgroundColor: colors.primary }, localStyles.container]}>
@@ -197,6 +199,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 textStyle={{ 
                     color: user?.isGuest ? colors.secondaryText : colors.accentText 
                 }}
+            />
+
+            <MainButton 
+            title="Присоединиться к календарю"
+            onPress={() => setShowInviteModal(true)}
+            icon="person-add"
             />
             
             <MainButton 
@@ -239,6 +247,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 visible={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
             />
+
+            <InviteModal
+                visible={showInviteModal}
+                onClose={() => setShowInviteModal(false)}
+                onJoinSuccess={(calendarId) => {
+                    navigation.navigate('Calendar', { calendarId });
+                }}
+            />
         </View>
     );
 };
@@ -260,6 +276,12 @@ const localStyles = StyleSheet.create({
         fontWeight: '500',
         flexShrink: 1,
         marginRight: 8,
+    },
+        calendarText: {
+        fontSize: 16,
+        marginLeft: 0,
+        flexShrink: 1,
+        maxWidth: '85%'
     },
     calendarItem: {
         flexDirection: 'row',
