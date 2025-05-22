@@ -7,7 +7,18 @@ const CALENDARS_KEY = '@calendars';
 export const loadCalendars = async (): Promise<Calendar[]> => {
   try {
     const stored = await AsyncStorage.getItem(CALENDARS_KEY);
-    return stored ? (JSON.parse(stored) as Calendar[]) : [];
+    if (!stored) {
+      return [];
+    }
+
+    try {
+      const parsedCalendars = JSON.parse(stored) as Calendar[];
+      return parsedCalendars;
+    } catch (parseError) {
+      console.error('Failed to parse calendars from storage:', parseError);
+      return [];
+    }
+
   } catch (error) {
     console.error('Failed to load calendars:', error);
     return [];
@@ -16,7 +27,8 @@ export const loadCalendars = async (): Promise<Calendar[]> => {
 
 export const saveCalendars = async (calendars: Calendar[]) => {
   try {
-    await AsyncStorage.setItem(CALENDARS_KEY, JSON.stringify(calendars));
+    const serializedCalendars = JSON.stringify(calendars);
+    await AsyncStorage.setItem(CALENDARS_KEY, serializedCalendars);
   } catch (error) {
     console.error('Failed to save calendars:', error);
   }

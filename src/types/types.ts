@@ -1,16 +1,39 @@
-//src/types/types.ts
+// src/types/types.ts
+import { UserRole } from '../utils/roleUtils';
+
 export interface Calendar {
-    id: string;
-    name: string;
-    color: string;
-    events: Event[];
-  }
-  
-  export interface Event {
-    id: string;
-    date: string;
-    title: string;
-    description: string;
-  }
-  
-  export type Theme = 'light' | 'dark' | 'pink';
+  id: string;
+  name: string;
+  events: CalendarEvent[];
+  ownerId?: string;
+  role: UserRole;
+}
+
+export type EventType = 'lab' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'commission' | 'other';
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string;
+  start_datetime?: string | null;
+  end_datetime?: string | null;
+  links: string[];
+  type: EventType;
+  location?: string;
+  is_emergency?: boolean;
+  attach_to_end: boolean;
+  sync_status?: 'synced' | 'pending';
+}
+
+export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest' | 'military';
+
+export interface CalendarInvite {
+  code: string;
+  expiresAt: string;
+}
+
+export interface CalendarMember {
+  userId: string;
+  displayName: string;
+  role: UserRole;
+}

@@ -1,21 +1,75 @@
 // src/components/MainButton.tsx
-    import React from 'react';
-    import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-    import { useTheme } from '../contexts/ThemeContext';
+import React from 'react';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '../contexts/ThemeContext';
 
-    interface MainButtonProps {
-        title: string;
-        onPress: () => void;
-    }
+interface MainButtonProps {
+  title: string;
+  onPress: () => void;
+  icon?: keyof typeof MaterialIcons.glyphMap;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  disabled?: boolean;
+  iconSize?: number;
+  iconPosition?: 'left' | 'right';
+  textColor?: string;
+}
 
-    const MainButton: React.FC<MainButtonProps> = ({ title, onPress }) => {
-        const { styles } = useTheme(); // Получаем стили из контекста
+const MainButton: React.FC<MainButtonProps> = ({ 
+  title, 
+  onPress, 
+  icon, 
+  style, 
+  textStyle, 
+  disabled = false,
+  iconSize = 20,
+  iconPosition = 'left',
+  textColor
+}) => {
+  const { colors } = useTheme();
 
-        return (
-            <TouchableOpacity style={styles.button} onPress={onPress}>
-                <Text style={styles.buttonText}>{title}</Text>
-            </TouchableOpacity>
-        );
-    };
+  return (
+    <TouchableOpacity
+      style={[
+        {
+          backgroundColor: colors.accent,
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          flexDirection: iconPosition === 'right' ? 'row-reverse' : 'row',
+          justifyContent: 'center',
+          opacity: disabled ? 0.6 : 1,
+        },
+        style
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={disabled}
+    >
+      {icon && (
+        <MaterialIcons
+          name={icon}
+          size={iconSize}
+          color={colors.accentText}
+          style={{
+            marginRight: iconPosition === 'left' ? 8 : 0,
+            marginLeft: iconPosition === 'right' ? 8 : 0
+          }}
+        />
+      )}
+      <Text style={[
+        {
+          color: textColor || colors.accentText,
+          fontSize: 16,
+          fontWeight: '500',
+        },
+        textStyle
+      ]}>
+        {title}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
-    export default MainButton;
+export default MainButton;
