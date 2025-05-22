@@ -1,7 +1,7 @@
 // src/screens/ViewEventScreen.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Linking } from 'react-native';
-import { RouteProp } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Linking, Alert } from 'react-native';
+import { RouteProp, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { useTheme } from '../contexts/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import api from '../api/client';
 import { translateEventType, getEventIcon } from '../utils/eventUtils';
 import { TouchableOpacity } from 'react-native';
 import { EventType } from '../types/types';
+import { useCalendar } from '../contexts/CalendarContext';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 type EventDetails = {
   id: string;
@@ -22,6 +24,7 @@ type EventDetails = {
   description?: string;
   links?: string[];
   is_emergency: boolean;
+  attach_to_end: boolean;
 };
 
 const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEvent'> }> = ({ route }) => {
@@ -30,8 +33,55 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { deleteEvent } = useCalendar();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  useEffect(() => {
+
+  const handleDelete = async () => {
+    Alert.alert(
+      'Удаление события',
+      'Вы уверены, что хотите удалить это событие?',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { 
+          text: 'Удалить', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              if (calendarId && event) {
+                await deleteEvent(calendarId, event.id);
+                navigation.goBack();
+              }
+            } catch (error) {
+              Alert.alert('Ошибка', 'Не удалось удалить событие');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEdit = () => {
+    if (!event) return;
+    
+    navigation.navigate('AddEvent', { 
+      eventId: event.id,
+      calendarId,
+      isEdit: true,
+      initialData: {
+        title: event.title,
+        description: event.description,
+        type: event.type,
+        location: event.location,
+        start_datetime: event.start_datetime,
+        end_datetime: event.end_datetime,
+        links: event.links,
+        is_emergency: event.is_emergency,
+        attach_to_end: event.attach_to_end
+      }
+    });
+  };
+
     const fetchEvent = async () => {
       try {
         console.log('Fetching event with ID:', eventId);
@@ -49,7 +99,8 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
           location: response.data.location,
           description: response.data.description,
           links: response.data.links,
-          is_emergency: response.data.is_emergency
+          is_emergency: response.data.is_emergency,
+          attach_to_end: response.data.attach_to_end
         };
         
         setEvent(processedEvent);
@@ -61,14 +112,20 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
       }
     };
 
+  useEffect(() => {
     fetchEvent();
   }, [eventId]);
 
-  const formatSafeDate = (dateString: string) => {
+  const formatSafeDate = (dateString?: string | null) => {
+    if (!dateString) return 'Дата не указана';
+    
     try {
-      return format(new Date(dateString), 'd MMMM yyyy, HH:mm', { locale: ru });
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Некорректная дата';
+      
+      return format(date, 'd MMMM yyyy, HH:mm', { locale: ru });
     } catch {
-      return 'Некорректная дата';
+      return 'Некорректный формат даты';
     }
   };
 
@@ -104,42 +161,96 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
       <View style={styles.contentWrapper}>
         {/* Заголовок */}
         <View style={styles.header}>
-          <MaterialIcons 
-            name={getEventIcon(event.type)} 
-            size={32} 
-            color={colors.accent} 
-            style={styles.eventIcon}
-          />
-          <View style={styles.titleWrapper}>
-            <Text style={[styles.title, { color: colors.text }]}>{event.title}</Text>
-            {event.is_emergency && (
-              <View style={[styles.emergencyBadge, { backgroundColor: colors.emergency }]}>
-                <MaterialIcons name="warning" size={16} color={colors.accentText} />
-                <Text style={[styles.emergencyText, { color: colors.accentText }]}>Важное</Text>
-              </View>
-            )}
+          {/* Левая часть с контентом */}
+          <View style={styles.headerContent}>
+            <MaterialIcons 
+              name={getEventIcon(event.type)} 
+              size={28}
+              color={colors.accent} 
+              style={styles.eventIcon}
+            />
+            
+            <View style={styles.titleContainer}>
+              <Text 
+                style={[styles.title, { color: colors.text }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {event.title}
+              </Text>
+              
+              {event.is_emergency && (
+                <View style={[styles.emergencyBadge, { backgroundColor: colors.emergency }]}>
+                  <MaterialIcons name="warning" size={14} color={colors.accentText} />
+                  <Text style={[styles.emergencyText, { color: colors.accentText }]}>Важное</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Правая часть с кнопками */}
+          <View style={styles.actions}>
+            <TouchableOpacity 
+              onPress={handleEdit}
+              style={styles.actionButton}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="edit" size={24} color={colors.text} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={handleDelete}
+              style={styles.actionButton}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="delete-outline" size={24} color={colors.text} />
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Информационная панель */}
         <View style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
-
-          <View style={styles.infoRow}>
-            <MaterialIcons name="calendar-today" size={20} color={colors.text} />
-            <Text style={[styles.infoText, { color: colors.text }]}>
-              {formatSafeDate(event.start_datetime)}
-            </Text>
-          </View>
-
-          {event.end_datetime && (
+          {event.attach_to_end ? (
             <>
-              <View style={styles.separator} />
               <View style={styles.infoRow}>
                 <MaterialIcons name="timer-off" size={20} color={colors.text} />
                 <Text style={[styles.infoText, { color: colors.text }]}>
                   {formatSafeDate(event.end_datetime)}
                 </Text>
               </View>
+              {event.start_datetime && (
+                <>
+                  <View style={styles.separator} />
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="calendar-today" size={20} color={colors.text} />
+                    <Text style={[styles.infoText, { color: colors.text }]}>
+                      {formatSafeDate(event.start_datetime)}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <View style={styles.infoRow}>
+                <MaterialIcons name="calendar-today" size={20} color={colors.text} />
+                <Text style={[styles.infoText, { color: colors.text }]}>
+                  {formatSafeDate(event.start_datetime)}
+                </Text>
+              </View>
+              {event.end_datetime && (
+                <>
+                  <View style={styles.separator} />
+                  <View style={styles.infoRow}>
+                    <MaterialIcons name="timer-off" size={20} color={colors.text} />
+                    <Text style={[styles.infoText, { color: colors.text }]}>
+                      {formatSafeDate(event.end_datetime)}
+                    </Text>
+                  </View>
+                </>
+              )}
             </>
           )}
         </View>
@@ -169,11 +280,11 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
                 <MaterialIcons 
                   name="launch" 
                   size={20} 
-                  color={colors.accent} 
+                  color={colors.secondaryText} 
                   style={styles.linkIcon}
                 />
                 <Text 
-                  style={[styles.linkText, { color: colors.accent }]}
+                  style={[styles.linkText, { color: colors.secondaryText }]}
                   numberOfLines={1}
                 >
                   {link}
@@ -187,7 +298,6 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
   );
 };
 
-// Новый компонент Section для повторяющихся секций
 const Section: React.FC<{ 
   title: string; 
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -226,22 +336,72 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 24,
     paddingHorizontal: 16,
   },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 16,
+  },
+  actions: {
+    flexDirection: 'column',
+    gap: 12,
+    paddingTop: 4,
+  },
+  actionButton: {
+    padding: 4,
+  },
   eventIcon: {
     marginRight: 16,
+    top: 7,
+    marginBottom: 'auto'
+    
   },
   titleWrapper: {
     flex: 1,
+  },
+  titleContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: '600',
     marginBottom: 8,
+    marginRight: 8,
+    marginTop: 4
+  },
+  controlsContainer: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  gap: 8,
+  },
+  controlButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  controlText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   emergencyBadge: {
+    marginTop: 3,
+    marginRight: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,

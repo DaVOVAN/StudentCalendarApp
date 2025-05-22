@@ -8,6 +8,7 @@ import MainButton from './MainButton';
 import { loginSchema, registerSchema } from '../validations/authSchemas';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from 'react-native';
+import { useCalendar } from '../contexts/CalendarContext';
 
 type LoginFormData = {
   username: string;
@@ -30,13 +31,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ visible, onClose }) => {
   const { login, register } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [formKey, setFormKey] = useState(Date.now());
+  const { syncCalendars } = useCalendar();
 
-  const { 
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<LoginFormData | RegisterFormData>({
+  const { control, handleSubmit, reset, formState: { errors }} = useForm<LoginFormData | RegisterFormData>({
     resolver: isRegistering 
       ? yupResolver(registerSchema as any)
       : yupResolver(loginSchema as any),
@@ -55,6 +52,7 @@ const onSubmit: SubmitHandler<LoginFormData | RegisterFormData> = async (data) =
     } else {
       await login(data.username, data.password);
     }
+    await syncCalendars();
     onClose();
   } catch (error) {
     if (error instanceof Error) {
@@ -123,7 +121,6 @@ const onSubmit: SubmitHandler<LoginFormData | RegisterFormData> = async (data) =
             )}
           </View>
 
-          {/* Password Field */}
           <View style={styles.inputContainer}>
             <Controller
               control={control}
@@ -154,7 +151,6 @@ const onSubmit: SubmitHandler<LoginFormData | RegisterFormData> = async (data) =
             )}
           </View>
 
-          {/* Confirm Password Field (только для регистрации) */}
           {isRegistering && (
             <View style={styles.inputContainer}>
               <Controller

@@ -16,8 +16,7 @@ export const loadCalendars = async (): Promise<Calendar[]> => {
       return parsedCalendars;
     } catch (parseError) {
       console.error('Failed to parse calendars from storage:', parseError);
-      // Consider handling data corruption, e.g., by clearing storage or returning an empty array.
-      return []; // Or AsyncStorage.removeItem(CALENDARS_KEY) followed by return []
+      return [];
     }
 
   } catch (error) {

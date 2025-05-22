@@ -57,7 +57,7 @@ const InviteModal: React.FC<{
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.accent }]}
               onPress={handleJoin}>
-              <Text style={{ color: colors.accentText }}>Присоединиться</Text>
+              <Text style={{ color: colors.accentText }}>Добавить</Text>
             </TouchableOpacity>
             
             <TouchableOpacity

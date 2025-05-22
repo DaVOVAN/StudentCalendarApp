@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { RouteProp, useNavigation } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { EventType } from '../types/types';
 import { Picker } from '@react-native-picker/picker';
@@ -22,18 +22,26 @@ import MainButton from '../components/MainButton';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, setMinutes, isAfter } from 'date-fns';
 import { MaterialIcons } from '@expo/vector-icons';
+import { CalendarEvent } from '../types/types';
+import api from '../api/client';
 
 const roundMinutes = (date: Date) => setMinutes(date, Math.round(date.getMinutes() / 5) * 5);
 
 interface AddEventScreenProps {
-    route: RouteProp<RootStackParamList, 'AddEvent'>;
+    route: RouteProp<RootStackParamList, 'AddEvent'> & {
+        params: {
+            isEdit?: boolean;
+            initialData?: Partial<CalendarEvent>;
+        }
+    };
 }
 
 const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
     const { colors } = useTheme();
-    const { calendarId, selectedDate, isShared } = route.params;
-    const { calendars, addEvent } = useCalendar();
+    const { calendars, addEvent, updateEvent, deleteEvent, syncEvents } = useCalendar();
     const navigation = useNavigation();
+
+    const { calendarId, selectedDate, isShared, eventId, isEdit, initialData } = route.params;
 
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -56,29 +64,65 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
         visible: boolean;
     }>({ type: 'start', mode: 'date', visible: false });
 
-    useEffect(() => {
-        if(eventType === 'lab') {
+    useFocusEffect(
+    useCallback(() => {
+        const initializeForm = () => {
+        if (initialData) {
+            setTitle(initialData.title || '');
+            setDescription(initialData.description || '');
+            setEventType(initialData.type || 'lab');
+            setLocation(initialData.location || '');
+            setIsEmergency(initialData.is_emergency || false);
+            setLinks(initialData.links?.length ? initialData.links : ['']);
+            
+            // Инициализация дат
+            if (initialData.attach_to_end && initialData.end_datetime) {
+            const endDate = new Date(initialData.end_datetime);
+            setEndDate(endDate);
+            setEndTime(endDate);
+            setStartDate(undefined);
+            setStartTime(undefined);
+            } else if (initialData.start_datetime) {
+            const startDate = new Date(initialData.start_datetime);
+            setStartDate(startDate);
+            setStartTime(startDate);
+            
+            if (initialData.end_datetime) {
+                const endDate = new Date(initialData.end_datetime);
+                setEndDate(endDate);
+                setEndTime(endDate);
+            }
+            }
+        } else {
+            // Логика для нового события
+            const defaultDate = new Date(selectedDate || Date.now());
+            if (eventType === 'lab') {
             const newEnd = roundMinutes(new Date(defaultDate));
             newEnd.setDate(newEnd.getDate() + 1);
             setEndDate(newEnd);
             setEndTime(newEnd);
-            setStartDate(undefined);
-            setStartTime(undefined);
-        } else {
+            } else {
             const newStart = roundMinutes(new Date(defaultDate));
             setStartDate(newStart);
             setStartTime(newStart);
-            setEndDate(undefined);
-            setEndTime(undefined);
+            }
         }
-    }, [eventType]);
+        };
+
+        initializeForm();
+    }, [initialData, selectedDate, eventType])
+    );
 
     const combineDateTime = (date: Date | undefined, time: Date | undefined) => {
-        if (!date || !time) return undefined;
-        const combined = new Date(date);
-        combined.setHours(time.getHours());
-        combined.setMinutes(time.getMinutes());
-        return roundMinutes(combined);
+    if (!date || !time) return undefined;
+    
+    const combined = new Date(date);
+    combined.setHours(time.getHours());
+    combined.setMinutes(time.getMinutes());
+    combined.setSeconds(0);
+    combined.setMilliseconds(0);
+    
+    return roundMinutes(combined);
     };
 
     const validateDates = () => {
@@ -193,39 +237,53 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
 
     const handleAddEvent = useCallback(async () => {
         if (!validateDates()) return;
-        
+
         const start = combineDateTime(startDate, startTime);
         const end = combineDateTime(endDate, endTime);
         const attachToEnd = !!end && !start;
 
-        if (!start && !end) {
-            Alert.alert('Ошибка', 'Необходимо выбрать хотя бы одну дату');
-            return;
-        }
-
         const eventData = {
-        title,
-        description: description || undefined,
-        type: eventType,
-        location: location || undefined,
-        start_datetime: start?.toISOString(),
-        end_datetime: end?.toISOString(),
-        links: links.filter(link => link.trim()),
-        is_emergency: isEmergency,
-        attach_to_end: attachToEnd,
-        calendar_id: calendarId
+            title: title.trim(),
+            description: description.trim() || undefined,
+            type: eventType,
+            location: location.trim() || undefined,
+            start_datetime: start?.toISOString(),
+            end_datetime: end?.toISOString(),
+            links: links.filter(link => link.trim()),
+            is_emergency: isEmergency,
+            attach_to_end: attachToEnd,
+            calendar_id: calendarId
         };
 
         try {
+            if (isEdit && eventId) {
+            await api.put(`/events/${eventId}`, eventData);
+            } else {
             const targetCalendars = isShared ? selectedCalendars : [calendarId as string];
-            await Promise.all(targetCalendars.map(async calId => {
-                await addEvent(calId, eventData);
-            }));
+            await Promise.all(
+                targetCalendars.map(calId => 
+                api.post('/events', { ...eventData, calendar_id: calId })
+                )
+            );
+            }
             navigation.goBack();
+            
         } catch (error) {
-            Alert.alert('Ошибка', 'Не удалось сохранить событие');
+            console.error('Save error:', error);
+            Alert.alert(
+            'Ошибка', 
+            isEdit 
+                ? 'Не удалось обновить событие' 
+                : 'Не удалось создать событие'
+            );
         }
-    }, [startDate, startTime, endDate, endTime, title, description, links, eventType, location, isEmergency, selectedCalendars, calendarId, isShared, addEvent, navigation]);
+    }, [
+    startDate, startTime, endDate, endTime,
+    title, description, eventType, location,
+    links, isEmergency, selectedCalendars,
+    calendarId, isShared, isEdit, eventId,
+    navigation, validateDates
+    ]);
 
     return (
         <KeyboardAvoidingView

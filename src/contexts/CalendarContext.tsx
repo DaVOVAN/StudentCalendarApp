@@ -17,7 +17,9 @@ interface CalendarContextType {
     addTestEvent: (calendarId: string, date: Date) => Promise<void>;
     syncCalendars: () => Promise<void>;
     joinCalendar: (code: string) => Promise<void>;
-   getCalendarMembers: (calendarId: string) => Promise<CalendarMember[]>;
+    getCalendarMembers: (calendarId: string) => Promise<CalendarMember[]>;
+    updateEvent: (calendarId: string, eventId: string, event: CalendarEvent) => Promise<void>;
+    deleteEvent: (calendarId: string, eventId: string) => Promise<void>;
 }
 
 const CalendarContext = createContext<CalendarContextType>({} as CalendarContextType);
@@ -183,6 +185,26 @@ const addCalendar = useCallback((name: string) => {
     }
     }, [updateCalendars]);
 
+    const updateEvent = useCallback(async (calendarId: string, eventId: string, event: CalendarEvent) => {
+    try {
+        await api.put(`/events/${eventId}`, event);
+        await syncEvents(calendarId);
+    } catch (error) {
+        console.error('Ошибка обновления события:', error);
+        throw error;
+    }
+    }, [syncEvents]);
+
+    const deleteEvent = useCallback(async (calendarId: string, eventId: string) => {
+    try {
+        await api.delete(`/events/${eventId}`);
+        await syncEvents(calendarId);
+    } catch (error) {
+        console.error('Ошибка удаления события:', error);
+        throw error;
+    }
+    }, [syncEvents]);
+
     const deleteCalendar = useCallback(async (calendarId: string) => {
         let backupCalendars: Calendar[] = [];
         try {
@@ -273,6 +295,8 @@ const addCalendar = useCallback((name: string) => {
 
         return filtered;
         });
+        
+        serverCalendars.forEach(cal => syncEvents(cal.id));
 
     } catch (error: any) {
         console.error('[SYNC] Sync failed:', {
@@ -337,7 +361,9 @@ const addCalendar = useCallback((name: string) => {
             addTestEvent,
             syncCalendars,
             joinCalendar,
-            getCalendarMembers
+            getCalendarMembers,
+            updateEvent,
+            deleteEvent
         }}>
             {children}
         </CalendarContext.Provider>

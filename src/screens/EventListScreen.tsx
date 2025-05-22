@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { format, isSameDay } from 'date-fns';
@@ -25,7 +25,7 @@ const EventListScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     const { calendarId, selectedDate: rawDate } = route.params || {};
-
+    
     useEffect(() => {
         if (!calendarId || !rawDate) {
             navigation.goBack();
@@ -85,6 +85,12 @@ const EventListScreen: React.FC = () => {
     useEffect(() => {
         loadEvents();
     }, [loadEvents]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+        loadEvents();
+        }, [calendarId, safeDate, loadEvents])
+    );
 
 const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
     const eventDate = item.attach_to_end && item.end_datetime 

@@ -77,6 +77,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         }
     }, [selectedCalendarId, deleteCalendar]);
 
+    const handleLogout = useCallback(async () => {
+        try {
+        await logout();
+        await syncCalendars();
+        } catch (error) {
+        console.error('Logout error:', error);
+        }
+    }, [logout, syncCalendars]);
+
     const AddCalendarModal = () => {
         const [inputValue, setInputValue] = useState('');
         const textInputRef = useRef<TextInput>(null);
@@ -141,7 +150,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             {!user?.isGuest ? (
                 <MainButton
                     title="Выйти"
-                    onPress={logout}
+                    onPress={handleLogout}
                     icon="exit-to-app"
                     style={{ backgroundColor: colors.accent }}
                     textStyle={{ color: colors.accentText }}

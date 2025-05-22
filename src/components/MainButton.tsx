@@ -13,6 +13,7 @@ interface MainButtonProps {
   disabled?: boolean;
   iconSize?: number;
   iconPosition?: 'left' | 'right';
+  textColor?: string;
 }
 
 const MainButton: React.FC<MainButtonProps> = ({ 
@@ -23,7 +24,8 @@ const MainButton: React.FC<MainButtonProps> = ({
   textStyle, 
   disabled = false,
   iconSize = 20,
-  iconPosition = 'left'
+  iconPosition = 'left',
+  textColor
 }) => {
   const { colors } = useTheme();
 
@@ -58,7 +60,7 @@ const MainButton: React.FC<MainButtonProps> = ({
       )}
       <Text style={[
         {
-          color: colors.accentText,
+          color: textColor || colors.accentText,
           fontSize: 16,
           fontWeight: '500',
         },
