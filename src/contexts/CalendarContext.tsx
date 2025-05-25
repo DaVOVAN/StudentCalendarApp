@@ -26,7 +26,7 @@ const CalendarContext = createContext<CalendarContextType>({} as CalendarContext
 
 export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [calendars, setCalendars] = useState<Calendar[]>([]);
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, refreshSession, createGuestSession } = useAuth();
 
     const mergeCalendars = (
     serverCalendars: Calendar[],
@@ -282,32 +282,40 @@ const addCalendar = useCallback((name: string) => {
 
     const syncCalendars = useCallback(async () => {
     try {
-        
         const serverResponse = await api.get('/calendars');
         const serverCalendars: Calendar[] = serverResponse.data;
-        
-        updateCalendars(prevCalendars => {
-        
-        const merged = mergeCalendars(serverCalendars, prevCalendars);
-        
-        const filtered = merged.filter(c => 
-            serverCalendars.some(sc => sc.id === c.id)
-        );
 
-        return filtered;
+        updateCalendars(prev => {
+        const merged = mergeCalendars(serverCalendars, prev);
+        return merged.filter(c => serverCalendars.some(sc => sc.id === c.id));
         });
-        
-        serverCalendars.forEach(cal => syncEvents(cal.id));
+
+        const promises = serverCalendars.map(cal => syncEvents(cal.id));
+        await Promise.all(promises);
 
     } catch (error: any) {
+        if (error?.response?.status === 401) {
+        try {
+            await refreshSession();
+            return syncCalendars();
+        } catch (refreshError) {
+            await createGuestSession();
+            throw refreshError;
+        }
+        }
+        
+        if (error?.response?.data?.code === 'REFRESH_FAILED') {
+        await createGuestSession();
+        }
+
         console.error('[SYNC] Sync failed:', {
         error: error.response?.data || error.message,
         timestamp: new Date().toISOString()
         });
         
-        Alert.alert('Ошибка', 'Не удалось синхронизировать календари');
+        throw error;
     }
-    }, [updateCalendars]);
+    }, [updateCalendars, syncEvents, useAuth]);
 
     const joinCalendar = useCallback(async (code: string) => {
     try {

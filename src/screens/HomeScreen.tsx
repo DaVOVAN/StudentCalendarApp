@@ -142,29 +142,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     };
 
     const renderAuthStatus = () => (
-        <View style={[localStyles.authContainer, { backgroundColor: colors.secondary }]}>
-            <Text style={[localStyles.userText, { color: colors.text }]}>
-                {user?.displayName || 'Гость'}
-            </Text>
-            
-            {!user?.isGuest ? (
-                <MainButton
-                    title="Выйти"
-                    onPress={handleLogout}
-                    icon="exit-to-app"
-                    style={{ backgroundColor: colors.accent }}
-                    textStyle={{ color: colors.accentText }}
-                />
-            ) : (
-                <MainButton
-                    title="Войти"
-                    onPress={() => setShowAuthModal(true)}
-                    icon="login"
-                    style={{ backgroundColor: colors.accent }}
-                    textStyle={{ color: colors.accentText }}
-                />
-            )}
-        </View>
+    <View style={[localStyles.authContainer, { backgroundColor: colors.secondary }]}>
+        <Text style={[localStyles.userText, { color: colors.text }]}>
+        {user?.displayName || 'Гость'}
+        </Text>
+        
+        {!user?.isGuest ? (
+        <MainButton
+            title="Выйти"
+            onPress={handleLogout}
+            icon="exit-to-app"
+            style={{ backgroundColor: colors.accent }}
+            textStyle={{ color: colors.accentText }}
+        />
+        ) : (
+        <MainButton
+            title="Войти"
+            onPress={() => setShowAuthModal(true)}
+            icon="login"
+            style={{ backgroundColor: colors.accent }}
+            textStyle={{ color: colors.accentText }}
+        />
+        )}
+    </View>
     );
 
     const renderCalendarItem = useCallback(({ item }: { item: Calendar }) => (

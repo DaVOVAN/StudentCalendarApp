@@ -52,7 +52,7 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config;
     
-    if (error.response?.status === 401 && originalRequest && !originalRequest?._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 500) && originalRequest && !originalRequest?._retry) {
       try {
         originalRequest._retry = true;
         const refreshToken = await AsyncStorage.getItem('@refresh_token');
@@ -62,44 +62,35 @@ api.interceptors.response.use(
         }
 
         const refreshResponse = await axios.post(
-          `${api.defaults.baseURL}/auth/refresh`, 
+          `${api.defaults.baseURL}/auth/refresh`,
           { refreshToken },
-          { 
-            headers: { 
-              'X-Request-Source': 'refresh-token',
-              'Authorization': ''
-            } 
-          }
+          { headers: { 'X-Request-Source': 'token-refresh' } }
         );
 
-        if (!refreshResponse.data?.accessToken) {
-          throw new Error('Invalid server response');
-        }
-
-        const user = await getUserFromToken(refreshResponse.data.accessToken);
-        
         await AsyncStorage.multiSet([
           ['@access_token', refreshResponse.data.accessToken],
-          ['@refresh_token', refreshToken],
-          ['@user', JSON.stringify(user)]
+          ['@refresh_token', refreshResponse.data.refreshToken],
+          ['@user', JSON.stringify(refreshResponse.data.user)]
         ]);
 
         originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
         
         return api(originalRequest);
-      } catch (refreshError: unknown) {
-        let errorMessage = 'Unknown error';
-        if (refreshError instanceof Error) {
-          errorMessage = refreshError.message;
-          console.error('Ошибка обновления токена:', {
-            message: errorMessage,
-            stack: refreshError.stack
-          });
-        }
-        
+      } catch (refreshError) {
         await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-        window.location.reload();
-        return Promise.reject(new Error(errorMessage));
+        const guestResponse = await axios.post(
+          `${api.defaults.baseURL}/auth/guest`,
+          {},
+          { headers: { 'X-Request-Source': 'guest-fallback' } }
+        );
+        
+        await AsyncStorage.multiSet([
+          ['@access_token', guestResponse.data.accessToken],
+          ['@refresh_token', guestResponse.data.refreshToken],
+          ['@user', JSON.stringify(guestResponse.data.user)]
+        ]);
+        
+        return Promise.reject(new Error('SessionRefreshFailed'));
       }
     }
     
