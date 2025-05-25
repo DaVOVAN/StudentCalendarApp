@@ -92,6 +92,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
                 : cal
             )
             );
+            
         } catch (error) {
             console.error('Ошибка синхронизации:', {
             error,

@@ -258,6 +258,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
         try {
             if (isEdit && eventId) {
             await api.put(`/events/${eventId}`, eventData);
+            await syncEvents(calendarId!);
             } else {
             const targetCalendars = isShared ? selectedCalendars : [calendarId as string];
             await Promise.all(

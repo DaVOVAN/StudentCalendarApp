@@ -116,6 +116,12 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
     fetchEvent();
   }, [eventId]);
 
+    useFocusEffect(
+      useCallback(() => {
+          fetchEvent();
+      }, [eventId])
+    );
+
   const formatSafeDate = (dateString?: string | null) => {
     if (!dateString) return 'Дата не указана';
     
