@@ -24,6 +24,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { EventType } from '../types/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../contexts/AuthContext';
 
 const CalendarDay: React.FC<{
     date: Date;
@@ -74,6 +75,8 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
 
     const calendar = calendars.find(c => c.id === calendarId);
     const eventsForCalendar = calendar?.events || [];
+    const { user } = useAuth();
+    const role = calendar?.role || 'guest';
 
     const eventsByDate = useMemo(() => {
     const groupedEvents: Record<string, CalendarEvent[]> = {};
@@ -175,8 +178,10 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
 
             <TouchableOpacity 
             onPress={() => navigation.navigate('CalendarMembers', { calendarId })}
-            style={styles.membersButton}>
-            <MaterialIcons name="people" size={24} color={colors.text} />
+            style={styles.membersButton}
+            disabled={user?.isGuest || role === 'member'}
+            >
+            <MaterialIcons name="people" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
             </TouchableOpacity>
 
             <ActionMenu

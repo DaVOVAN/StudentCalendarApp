@@ -13,6 +13,7 @@ import { TouchableOpacity } from 'react-native';
 import { EventType } from '../types/types';
 import { useCalendar } from '../contexts/CalendarContext';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useAuth } from '../contexts/AuthContext';
 
 type EventDetails = {
   id: string;
@@ -35,6 +36,10 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
   const [error, setError] = useState<string | null>(null);
   const { deleteEvent } = useCalendar();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { calendars } = useCalendar();
+  const calendar = calendars.find(c => c.id === route.params.calendarId);
+  const { user } = useAuth();
+  const role = calendar?.role || 'guest';
 
 
   const handleDelete = async () => {
@@ -198,20 +203,22 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
           <View style={styles.actions}>
             <TouchableOpacity 
               onPress={handleEdit}
+              disabled={user?.isGuest || role === 'member'}
               style={styles.actionButton}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="edit" size={24} color={colors.text} />
+              <MaterialIcons name="edit" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
             </TouchableOpacity>
             
             <TouchableOpacity 
               onPress={handleDelete}
+              disabled={user?.isGuest || role === 'member'}
               style={styles.actionButton}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="delete-outline" size={24} color={colors.text} />
+              <MaterialIcons name="delete-outline" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
             </TouchableOpacity>
           </View>
         </View>

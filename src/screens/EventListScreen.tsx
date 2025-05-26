@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../api/client';
 import { ru } from 'date-fns/locale';
 import { translateEventType, getEventIcon } from '../utils/eventUtils';
+import { useAuth } from '../contexts/AuthContext';
 
 const EventListScreen: React.FC = () => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -23,6 +24,7 @@ const EventListScreen: React.FC = () => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
 
     const { calendarId, selectedDate: rawDate } = route.params || {};
     
@@ -219,7 +221,14 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                         selectedDate: safeDate.toISOString() 
                     })}
                     icon="add"
-                    style={{ backgroundColor: colors.accent, marginTop: 16 }}
+                    style={{ 
+                        backgroundColor: user?.isGuest ? colors.secondary : colors.accent,
+                        opacity: user?.isGuest ? 0.6 : 1,
+                    }}
+                    textStyle={{ 
+                        color: user?.isGuest ? colors.secondaryText : colors.accentText 
+                    }}
+                    disabled={user?.isGuest}
                 />
             </View>
         </SafeAreaView>
