@@ -52,14 +52,15 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config;
     
-    if ((error.response?.status === 401 || error.response?.status === 500) && originalRequest && !originalRequest?._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 403) 
+      && originalRequest 
+      && !originalRequest?._retry) {
+      
       try {
         originalRequest._retry = true;
         const refreshToken = await AsyncStorage.getItem('@refresh_token');
         
-        if (!refreshToken) {
-          throw new Error('RefreshTokenMissing');
-        }
+        if (!refreshToken) throw new Error('RefreshTokenMissing');
 
         const refreshResponse = await axios.post(
           `${api.defaults.baseURL}/auth/refresh`,
@@ -74,10 +75,8 @@ api.interceptors.response.use(
         ]);
 
         originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
-        
         return api(originalRequest);
       } catch (refreshError) {
-        await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
         const guestResponse = await axios.post(
           `${api.defaults.baseURL}/auth/guest`,
           {},
@@ -93,7 +92,6 @@ api.interceptors.response.use(
         return Promise.reject(new Error('SessionRefreshFailed'));
       }
     }
-    
     return Promise.reject(error);
   }
 );

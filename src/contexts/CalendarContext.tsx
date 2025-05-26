@@ -281,40 +281,40 @@ const addCalendar = useCallback((name: string) => {
     }, [addEvent]);
 
     const syncCalendars = useCallback(async () => {
-    try {
-        const serverResponse = await api.get('/calendars');
-        const serverCalendars: Calendar[] = serverResponse.data;
-
-        updateCalendars(prev => {
-        const merged = mergeCalendars(serverCalendars, prev);
-        return merged.filter(c => serverCalendars.some(sc => sc.id === c.id));
-        });
-
-        const promises = serverCalendars.map(cal => syncEvents(cal.id));
-        await Promise.all(promises);
-
-    } catch (error: any) {
-        if (error?.response?.status === 401) {
         try {
-            await refreshSession();
-            return syncCalendars();
-        } catch (refreshError) {
-            await createGuestSession();
-            throw refreshError;
-        }
-        }
-        
-        if (error?.response?.data?.code === 'REFRESH_FAILED') {
-        await createGuestSession();
-        }
+            const serverResponse = await api.get('/calendars');
+            const serverCalendars: Calendar[] = serverResponse.data;
 
-        console.error('[SYNC] Sync failed:', {
-        error: error.response?.data || error.message,
-        timestamp: new Date().toISOString()
-        });
-        
-        throw error;
-    }
+            updateCalendars(prev => {
+            const merged = mergeCalendars(serverCalendars, prev);
+            return merged.filter(c => serverCalendars.some(sc => sc.id === c.id));
+            });
+
+            const promises = serverCalendars.map(cal => syncEvents(cal.id));
+            await Promise.all(promises);
+
+        } catch (error: any) {
+            if (error?.response?.status === 401) {
+            try {
+                await refreshSession();
+                return syncCalendars();
+            } catch (refreshError) {
+                await createGuestSession();
+                throw refreshError;
+            }
+            }
+            
+            if (error?.response?.data?.code === 'REFRESH_FAILED') {
+            await createGuestSession();
+            }
+
+            console.error('[SYNC] Sync failed:', {
+            error: error.response?.data || error.message,
+            timestamp: new Date().toISOString()
+            });
+            
+            throw error;
+        }
     }, [updateCalendars, syncEvents, useAuth]);
 
     const joinCalendar = useCallback(async (code: string) => {
