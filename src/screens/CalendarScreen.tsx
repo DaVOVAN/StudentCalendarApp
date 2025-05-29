@@ -142,18 +142,34 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     return (
         <View style={[styles.container, { backgroundColor: colors.primary }]}>
             <View style={styles.header}>
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('CalendarSettings', { calendarId })}
+                    style={styles.settingsButton}
+                >
+                    <MaterialIcons name="settings" size={24} color={colors.text} />
+                </TouchableOpacity>
+                
                 <Text style={[styles.title, { color: colors.text }]}>{calendar?.name}</Text>
-                <View style={styles.monthControls}>
-                    <TouchableOpacity onPress={() => setCurrentMonth(prev => subMonths(prev, 1))}>
-                        <MaterialIcons name="chevron-left" size={28} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.monthText, { color: colors.text }]}>
-                        {format(currentMonth, 'LLLL yyyy', { locale: ru })}
-                    </Text>
-                    <TouchableOpacity onPress={() => setCurrentMonth(prev => addMonths(prev, 1))}>
-                        <MaterialIcons name="chevron-right" size={28} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
+                
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('CalendarMembers', { calendarId })}
+                    style={styles.membersButton}
+                    disabled={user?.isGuest || role === 'member'}
+                >
+                    <MaterialIcons name="people" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.monthControls}>
+                <TouchableOpacity onPress={() => setCurrentMonth(prev => subMonths(prev, 1))}>
+                    <MaterialIcons name="chevron-left" size={28} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.monthText, { color: colors.text }]}>
+                    {format(currentMonth, 'LLLL yyyy', { locale: ru })}
+                </Text>
+                <TouchableOpacity onPress={() => setCurrentMonth(prev => addMonths(prev, 1))}>
+                    <MaterialIcons name="chevron-right" size={28} color={colors.text} />
+                </TouchableOpacity>
             </View>
 
             <View style={styles.grid}>
@@ -176,22 +192,15 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
                 })}
             </View>
 
-            <TouchableOpacity 
-            onPress={() => navigation.navigate('CalendarMembers', { calendarId })}
-            style={styles.membersButton}
-            disabled={user?.isGuest || role === 'member'}
-            >
-            <MaterialIcons name="people" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
-            </TouchableOpacity>
-
             <ActionMenu
                 isVisible={isActionMenuVisible}
                 onClose={() => setIsActionMenuVisible(false)}
                 selectedDate={selectedDate}
                 onClearDate={(date) => {
                     if (calendarId) {
-                    clearDateEvents(calendarId, date);
-                }}}
+                        clearDateEvents(calendarId, date);
+                    }
+                }}
                 onAddTestEvent={(date) => calendarId && addTestEvent(calendarId, date)}
             />
         </View>
@@ -204,19 +213,31 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 20,
+        paddingHorizontal: 16,
+    },
+    settingsButton: {
+        padding: 8,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
-        marginBottom: 8,
+        flex: 1,
+        marginHorizontal: 8,
+    },
+    membersButton: {
+        padding: 8,
     },
     monthControls: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 8,
+        marginBottom: 20,
     },
     monthText: {
         fontSize: 20,
@@ -244,12 +265,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 2,
         right: 2,
-    },
-    membersButton: {
-        position: 'absolute',
-        right: 20,
-        top: 20,
-        padding: 8,
     }
 });
 
