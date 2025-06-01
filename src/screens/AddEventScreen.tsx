@@ -94,7 +94,6 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
             }
             }
         } else {
-            // Логика для нового события
             const defaultDate = new Date(selectedDate || Date.now());
             if (eventType === 'lab') {
             const newEnd = roundMinutes(new Date(defaultDate));
@@ -408,7 +407,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                         <Picker.Item label="Итоговая работа" value="final" />
                         <Picker.Item label="Собрание" value="meeting" />
                         <Picker.Item label="Конференция" value="conference" />
-                        <Picker.Item label="Общественное мероприятие" value="event" />
+                        <Picker.Item label="Общественное мероприятие" value="public_event" />
                         <Picker.Item label="Комиссия" value="commission" />
                         <Picker.Item label="Другое" value="other" />
                     </Picker>

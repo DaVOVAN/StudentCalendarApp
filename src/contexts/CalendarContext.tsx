@@ -76,31 +76,31 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, []);
 
     const syncEvents = useCallback(async (calendarId: string) => {
-        try {
-            const response = await api.get(`/calendars/${calendarId}/events`);
-            const serverEvents = response.data.map((serverEvent: any) => ({
-            ...serverEvent,
-            start_datetime: serverEvent.start_datetime || '',
-            end_datetime: serverEvent.end_datetime || '',
-            syncStatus: 'synced' as const
-            }));
-            
-            updateCalendars(prev => 
-            prev.map(cal => 
-                cal.id === calendarId 
-                ? { ...cal, events: mergeEvents(cal.events, serverEvents) } 
-                : cal
-            )
-            );
-            
-        } catch (error) {
-            console.error('Ошибка синхронизации:', {
-            error,
-            calendarId,
-            timestamp: new Date().toISOString()
-            });
-            Alert.alert('Ошибка', 'Не удалось загрузить события');
-        }
+    try {
+        const response = await api.get(`/calendars/${calendarId}/events`);
+        const serverEvents = response.data.map((serverEvent: any) => ({
+        ...serverEvent,
+        start_datetime: serverEvent.start_datetime || '',
+        end_datetime: serverEvent.end_datetime || '',
+        syncStatus: 'synced' as const
+        }));
+        
+        updateCalendars(prev => 
+        prev.map(cal => 
+            cal.id === calendarId 
+            ? { ...cal, events: mergeEvents(cal.events, serverEvents) } 
+            : cal
+        )
+        );
+        
+    } catch (error) {
+        console.error('Ошибка синхронизации:', {
+        error,
+        calendarId,
+        timestamp: new Date().toISOString()
+        });
+        Alert.alert('Ошибка', 'Не удалось загрузить события');
+    }
     }, [updateCalendars]);
 
 const addCalendar = useCallback((name: string) => {

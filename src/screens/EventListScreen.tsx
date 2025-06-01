@@ -25,6 +25,7 @@ const EventListScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
+    const { calendars } = useCalendar();
 
     const { calendarId, selectedDate: rawDate } = route.params || {};
     
@@ -42,6 +43,12 @@ const EventListScreen: React.FC = () => {
         }
         setSafeDate(new Date(rawDate));
     }, [rawDate]);
+
+    const calendar = calendars.find(c => c.id === calendarId);
+    const role = calendar?.role || 'guest';
+    const isRestrictedView = 
+        role === 'mentor' && 
+        calendar?.settings?.mentorVisibility === false;
 
     const loadEvents = useCallback(async () => {
         try {
@@ -190,6 +197,22 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.primary }]}>
+            {isRestrictedView && (
+                <View style={[
+                    styles.restrictedBanner, 
+                    { backgroundColor: colors.accent + '20' }
+                ]}>
+                    <MaterialIcons 
+                        name="visibility-off" 
+                        size={20} 
+                        color={colors.text} 
+                    />
+                    <Text style={[styles.restrictedText, { color: colors.text }]}>
+                        Вы видите только свои события
+                    </Text>
+                </View>
+            )}
+            
             <Text style={[styles.dateTitle, { color: colors.text }]}>
             {safeDate ? format(safeDate, 'PPP', { locale: ru }) : ''}
             </Text>
@@ -334,12 +357,16 @@ const styles = StyleSheet.create({
         marginTop: 16,
         textAlign: 'center',
     },
-    eventIcon: {
-        marginRight: 12,
-    },
-    eventHeader: {
+    restrictedBanner: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    restrictedText: {
+        marginLeft: 8,
+        fontSize: 14,
     }
 });
 

@@ -9,6 +9,7 @@ export const translateEventType = (type: EventType): string => {
     case 'final': return 'Итоговая работа';
     case 'meeting': return 'Собрание';
     case 'conference': return 'Конференция';
+    case 'public_event': return 'Общественное мероприятие';
     case 'commission': return 'Комиссия';
     case 'other': return 'Другое';
     default: return 'Неизвестно';
@@ -22,6 +23,7 @@ export const getEventIcon = (type: EventType): keyof typeof MaterialIcons.glyphM
     case 'final': return 'gavel';
     case 'meeting': return 'groups';
     case 'conference': return 'record-voice-over';
+    case 'public_event': return 'event';
     case 'commission': return 'account-balance';
     case 'other': return 'event';
     default: return 'event';

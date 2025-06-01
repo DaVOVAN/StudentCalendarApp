@@ -19,8 +19,14 @@ const InviteModal: React.FC<{
       const response = await api.post('/calendars/join', { code });
       onJoinSuccess(response.data.calendarId);
       onClose();
-    } catch (err) {
-      setError('Неверный код или срок действия истек');
+    } catch (err: any) {
+      if (err.response?.status === 403) {
+        setError('Доступ для гостей закрыт.');
+      } else if (err.response?.status === 404) {
+        setError('Неверный код или срок действия истек');
+      } else {
+        setError('Не удалось присоединиться к календарю');
+      }
     }
   };
 

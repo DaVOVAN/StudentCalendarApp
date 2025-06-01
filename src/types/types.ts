@@ -7,9 +7,13 @@ export interface Calendar {
   events: CalendarEvent[];
   ownerId?: string;
   role: UserRole;
+  settings?: {
+    mentorVisibility: boolean;
+    allowGuests: boolean;
+  };
 }
 
-export type EventType = 'lab' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'commission' | 'other';
+export type EventType = 'lab' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'public_event' | 'commission' | 'other';
 
 export interface CalendarEvent {
   id: string;

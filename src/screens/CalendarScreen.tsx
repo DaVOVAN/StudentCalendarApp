@@ -62,7 +62,7 @@ const CalendarDay: React.FC<{
 const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { calendarId } = route.params;
-    const { calendars, addEvent, updateCalendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar();
+    const { calendars, addEvent, updateCalendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar(); 
     const { colors } = useTheme();
     
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -77,6 +77,8 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const eventsForCalendar = calendar?.events || [];
     const { user } = useAuth();
     const role = calendar?.role || 'guest';
+    
+    const isOwner = role === 'owner';
 
     const eventsByDate = useMemo(() => {
     const groupedEvents: Record<string, CalendarEvent[]> = {};
@@ -143,10 +145,15 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
         <View style={[styles.container, { backgroundColor: colors.primary }]}>
             <View style={styles.header}>
                 <TouchableOpacity 
-                    onPress={() => navigation.navigate('CalendarSettings', { calendarId })}
+                    onPress={() => isOwner && navigation.navigate('CalendarSettings', { calendarId })}
                     style={styles.settingsButton}
+                    disabled={!isOwner}
                 >
-                    <MaterialIcons name="settings" size={24} color={colors.text} />
+                    <MaterialIcons 
+                        name="settings" 
+                        size={24} 
+                        color={isOwner ? colors.text : colors.secondaryText} 
+                    />
                 </TouchableOpacity>
                 
                 <Text style={[styles.title, { color: colors.text }]}>{calendar?.name}</Text>
@@ -156,7 +163,11 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
                     style={styles.membersButton}
                     disabled={user?.isGuest || role === 'member'}
                 >
-                    <MaterialIcons name="people" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
+                    <MaterialIcons 
+                        name="people" 
+                        size={24} 
+                        color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} 
+                    />
                 </TouchableOpacity>
             </View>
 
