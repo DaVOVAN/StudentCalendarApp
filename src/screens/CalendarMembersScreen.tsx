@@ -13,6 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import MainButton from '../components/MainButton';
 import { useAuth } from '../contexts/AuthContext';
+import MentorInviteModal from '../components/MentorInviteModal';
 
 const CalendarMembersScreen: React.FC = () => {
   const { colors } = useTheme();
@@ -21,6 +22,7 @@ const CalendarMembersScreen: React.FC = () => {
   const [inviteCode, setInviteCode] = useState('');
   const [selectedMember, setSelectedMember] = useState<CalendarMember | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showMentorModal, setShowMentorModal] = useState(false);
   const { calendarId } = route.params;
   const { user: currentUser } = useAuth();
   
@@ -149,6 +151,16 @@ const CalendarMembersScreen: React.FC = () => {
         contentContainerStyle={styles.listContent}
       />
 
+      <View style={styles.buttonContainer}>
+        <MainButton
+          title="Добавить наставника"
+          onPress={() => setShowMentorModal(true)}
+          icon="person-add"
+          style={{ backgroundColor: colors.accent }}
+          textStyle={{ color: colors.accentText }}
+        />
+      </View>
+
       <Modal visible={showRoleModal} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setShowRoleModal(false)}>
           <View style={styles.modalOverlay}>
@@ -211,6 +223,16 @@ const CalendarMembersScreen: React.FC = () => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      <MentorInviteModal
+        visible={showMentorModal}
+        onClose={() => setShowMentorModal(false)}
+        onAddSuccess={() => {
+          Alert.alert('Успешно', 'Наставник добавлен в календарь');
+          loadData();
+        }}
+        calendarId={calendarId}
+      />
     </View>
   );
 };
@@ -282,6 +304,9 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     overflow: 'hidden',
+  },
+  buttonContainer: {
+    paddingVertical: 16,
   },
 });
 

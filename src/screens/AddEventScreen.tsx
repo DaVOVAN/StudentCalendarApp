@@ -413,7 +413,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                     </Picker>
                 </View>
 
-                {(eventType === 'meeting' || eventType === 'conference') && (
+                {(eventType === 'meeting' || eventType === 'conference' || eventType === 'public_event' || eventType === 'commission' || eventType === 'other') && (
                     <TextInput
                         style={[styles.input, { 
                             borderColor: colors.border,

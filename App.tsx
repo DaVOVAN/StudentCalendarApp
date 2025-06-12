@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from './src/contexts/ThemeContext';
 import CalendarMembersScreen from './src/screens/CalendarMembersScreen';
 import CalendarSettingsScreen from './src/screens/CalendarSettingsScreen';
+import AppSettingsScreen from './src/screens/AppSettingsScreen';
 
 LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
@@ -84,6 +85,7 @@ const App: React.FC = () => {
                     <Stack.Screen name="ThemeSelection" component={ThemeSelectionScreen} />
                     <Stack.Screen name="CalendarMembers" component={CalendarMembersScreen} />
                     <Stack.Screen name="CalendarSettings" component={CalendarSettingsScreen} />
+                    <Stack.Screen name="AppSettings" component={AppSettingsScreen} />
                   </Stack.Navigator>
                 </NavigationContainer>
               </SafeAreaView>

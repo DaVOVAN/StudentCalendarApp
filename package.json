@@ -19,7 +19,9 @@
     "@types/jwt-decode": "^2.2.1",
     "axios": "^1.9.0",
     "date-fns": "^2.29.3",
+    "eas": "^0.1.0",
     "expo": "^53.0.5",
+    "expo-clipboard": "~7.1.4",
     "expo-navigation-bar": "~4.2.4",
     "expo-status-bar": "~2.2.3",
     "jsonwebtoken": "^9.0.2",
@@ -35,8 +37,7 @@
     "react-native-screens": "~4.10.0",
     "react-native-vector-icons": "^10.2.0",
     "undefined": "@hookform/resolvers/yup",
-    "yup": "^1.6.1",
-    "expo-clipboard": "~7.1.4"
+    "yup": "^1.6.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

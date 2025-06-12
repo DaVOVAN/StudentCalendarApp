@@ -22,6 +22,7 @@ export type RootStackParamList = {
   ThemeSelection: undefined;
   CalendarMembers: { calendarId: string };
   CalendarSettings: { calendarId: string };
+  AppSettings: undefined;
 };
 
 export type MainTabParamList = {

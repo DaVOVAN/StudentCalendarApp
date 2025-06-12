@@ -196,54 +196,63 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         <View style={[globalStyles.container, { backgroundColor: colors.primary }, localStyles.container]}>
             {renderAuthStatus()}
             
-            <MainButton 
-                title="Создать календарь" 
-                onPress={() => setShowAddCalendarModal(true)}
-                icon="add"
-                disabled={user?.isGuest}
-                style={{ 
-                    backgroundColor: user?.isGuest ? colors.secondary : colors.accent,
-                    opacity: user?.isGuest ? 0.6 : 1,
-                }}
-                textStyle={{ 
-                    color: user?.isGuest ? colors.secondaryText : colors.accentText 
-                }}
-            />
-
-            <MainButton 
-            title="Присоединиться к календарю"
-            onPress={() => setShowInviteModal(true)}
-            icon="person-add"
-            />
-            
-            <MainButton 
-                title="Создать общее событие"
-                onPress={() => navigation.navigate('AddEvent', { isShared: true })}
-                icon="event"
-                disabled={user?.isGuest}
-                style={{ 
-                    backgroundColor: user?.isGuest ? colors.secondary : colors.accent,
-                    opacity: user?.isGuest ? 0.6 : 1,
-                }}
-                textStyle={{ 
-                    color: user?.isGuest ? colors.secondaryText : colors.accentText 
-                }}
-            />
-
-            <MainButton 
-                title="Выбрать тему" 
-                onPress={() => navigation.navigate('ThemeSelection')}
-                icon="palette"
-                style={{ backgroundColor: colors.accent }}
-                textStyle={{ color: colors.accentText }}
-            />
-
             <FlatList
                 data={calendars}
                 keyExtractor={item => item.id}
                 renderItem={renderCalendarItem}
                 contentContainerStyle={localStyles.listContent}
             />
+            
+            <View style={[localStyles.footerContainer, { borderTopColor: colors.border }]}>
+                <TouchableOpacity 
+                    onPress={() => setShowAddCalendarModal(true)}
+                    disabled={user?.isGuest}
+                    style={[
+                        localStyles.footerButton, 
+                        { 
+                            backgroundColor: user?.isGuest ? colors.secondary : colors.accent,
+                            opacity: user?.isGuest ? 0.6 : 1,
+                        }
+                    ]}
+                >
+                    <MaterialIcons name="calendar-monthG" size={28} color={colors.accentText} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => setShowInviteModal(true)}
+                    style={[localStyles.footerButton, {backgroundColor: colors.accent}]}
+                >
+                    <MaterialIcons name="group-add" size={28} color={colors.accentText} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('AddEvent', { isShared: true })}
+                    disabled={user?.isGuest}
+                    style={[
+                        localStyles.footerButton, 
+                        { 
+                            backgroundColor: user?.isGuest ? colors.secondary : colors.accent,
+                            opacity: user?.isGuest ? 0.6 : 1,
+                        }
+                    ]}
+                >
+                    <MaterialIcons name="create" size={28} color={colors.accentText} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('ThemeSelection')}
+                    style={[localStyles.footerButton, {backgroundColor: colors.accent}]}
+                >
+                    <MaterialIcons name="palette" size={28} color={colors.accentText} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('AppSettings')}
+                    style={[localStyles.footerButton, {backgroundColor: colors.accent}]}
+                >
+                    <MaterialIcons name="settings" size={28} color={colors.accentText} />
+                </TouchableOpacity>
+            </View>
 
             <ActionMenu
                 isVisible={isActionMenuVisible}
@@ -272,6 +281,7 @@ const localStyles = StyleSheet.create({
     container: {
         padding: 20,
         gap: 12,
+        flex: 1,
     },
     authContainer: {
         flexDirection: 'row',
@@ -279,6 +289,7 @@ const localStyles = StyleSheet.create({
         alignItems: 'center',
         padding: 12,
         borderRadius: 8,
+        marginBottom: 16,
     },
     userText: {
         fontSize: 16,
@@ -286,7 +297,7 @@ const localStyles = StyleSheet.create({
         flexShrink: 1,
         marginRight: 8,
     },
-        calendarText: {
+    calendarText: {
         fontSize: 16,
         marginLeft: 0,
         flexShrink: 1,
@@ -328,6 +339,21 @@ const localStyles = StyleSheet.create({
     listContent: {
         paddingHorizontal: 10,
         paddingBottom: 20,
+        flexGrow: 1,
+    },
+    footerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderTopWidth: 1,
+    },
+    footerButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
 
