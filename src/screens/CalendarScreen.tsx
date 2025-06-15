@@ -33,6 +33,7 @@ const CalendarDay: React.FC<{
     onLongPress: (date: Date) => void;
     isEmergency: boolean;
     isCurrentMonth: boolean;
+    hasUnseen: boolean;
 }> = ({ date, onDatePress, hasEvent, onLongPress, isEmergency, isCurrentMonth }) => {
     const { colors } = useTheme();
     
@@ -62,7 +63,7 @@ const CalendarDay: React.FC<{
 const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { calendarId } = route.params;
-    const { calendars, addEvent, updateCalendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar(); 
+    const { calendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar(); 
     const { colors } = useTheme();
     
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -81,23 +82,27 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const isOwner = role === 'owner';
 
     const eventsByDate = useMemo(() => {
-    const groupedEvents: Record<string, CalendarEvent[]> = {};
-    
-    eventsForCalendar.forEach(event => {
-        if (event.sync_status === 'pending') return;
+        const groupedEvents: Record<string, CalendarEvent[]> = {};
+        const unseenDates: Set<string> = new Set();
         
-        const baseDate = event.attach_to_end && event.end_datetime 
-        ? event.end_datetime 
-        : event.start_datetime;
+        eventsForCalendar.forEach(event => {
+            if (event.sync_status === 'pending') return;
+            
+            const baseDate = event.attach_to_end && event.end_datetime 
+            ? event.end_datetime 
+            : event.start_datetime;
 
-        if (!baseDate) return;
-        
-        const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
-        groupedEvents[dateKey] = groupedEvents[dateKey] || [];
-        groupedEvents[dateKey].push(event);
-    });
+            if (!baseDate) return;
+            const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
+            groupedEvents[dateKey] = groupedEvents[dateKey] || [];
+            groupedEvents[dateKey].push(event);
 
-    return groupedEvents;
+            if (!event.is_seen) {
+                unseenDates.add(dateKey);
+            }
+        });
+
+        return { groupedEvents, unseenDates };
     }, [eventsForCalendar]);
 
     useEffect(() => {
@@ -185,20 +190,37 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
 
             <View style={styles.grid}>
                 {eachDayOfInterval({ start: startDate, end: endDate }).map((date, index) => {
+                    const dateKey = format(date, 'yyyy-MM-dd');
+                    const hasUnseen = eventsByDate.unseenDates.has(dateKey);
                     const isCurrentMonth = isSameMonth(date, currentMonth);
-                    const hasEvent = Object.keys(eventsByDate).includes(format(date, 'yyyy-MM-dd'));
-                    const isEmergency = eventsByDate[format(date, 'yyyy-MM-dd')]?.some(e => e.is_emergency);
+                    const hasEvent = !!eventsByDate.groupedEvents[dateKey];
+                    const isEmergency = eventsByDate.groupedEvents[dateKey]?.some(e => e.is_emergency);
 
                     return (
-                        <CalendarDay
-                            key={index}
-                            date={date}
-                            onDatePress={handleDatePress}
-                            hasEvent={hasEvent}
-                            onLongPress={handleLongPress}
-                            isEmergency={isEmergency}
-                            isCurrentMonth={isCurrentMonth}
-                        />
+                    <Pressable
+                        key={index}
+                        style={[
+                        styles.dayCell, {borderWidth: 2, borderColor: colors.calendarDayBackground},
+                        { backgroundColor: colors.calendarDayBackground },
+                        !isCurrentMonth && { backgroundColor: colors.calendarOtherMonth, borderColor: colors.calendarOtherMonth },
+                        isEmergency && { backgroundColor: colors.emergency},
+                        hasUnseen && {borderColor: colors.text}
+                        ]}
+                        onPress={() => handleDatePress(date)}
+                        onLongPress={() => handleLongPress(date)}
+                    >
+                        <Text style={{ 
+                        color: isCurrentMonth ? colors.text : colors.secondaryText,
+                        fontSize: 16,
+                        fontWeight: isCurrentMonth ? '500' : '300'
+                        }}>
+                        {format(date, 'd')}
+                        </Text>
+                        
+                        {hasEvent && (
+                        <View style={[styles.eventIndicator, { backgroundColor: colors.text }]} />
+                        )}
+                    </Pressable>
                     );
                 })}
             </View>
@@ -276,7 +298,15 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 2,
         right: 2,
-    }
+    },
+    unseenIndicator: {
+        width: 6,
+        height: 6,
+        borderRadius: 4,
+        position: 'absolute',
+        top: 2,
+        right: 2,
+    },
 });
 
 export default CalendarScreen;

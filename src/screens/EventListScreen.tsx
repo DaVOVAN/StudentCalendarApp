@@ -118,8 +118,9 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
         >
             <View style={[
                 styles.eventItem, { 
-                    backgroundColor: colors.secondary,
-                    borderColor: colors.border,
+                    backgroundColor: !item.is_emergency ? colors.secondary : colors.secondary,
+                    borderWidth: !item.is_seen ? 2 : 1,
+                    borderColor: !item.is_seen ? colors.text : colors.border,
                     shadowColor: colors.text
                 }
             ]}>
@@ -149,6 +150,18 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                             </View>
                         )}
                     </View>
+
+                    {/* {!item.is_seen && item.is_emergency && (
+                        <View style={[styles.newBadge, { top: 32, backgroundColor: colors.emergency }]}>
+                            <Text style={[styles.emergencyText, { color: colors.accentText }]}>Новое</Text>
+                        </View>
+                    )}
+
+                    {!item.is_seen && !item.is_emergency && (
+                        <View style={[styles.newBadge, { backgroundColor: colors.emergency }]}>
+                            <Text style={[styles.emergencyText, { color: colors.accentText }]}>Новое</Text>
+                        </View>
+                    )} */}
                     
                     <View style={styles.details}>
                         <MaterialIcons 
@@ -336,7 +349,6 @@ const styles = StyleSheet.create({
     emergencyText: {
         fontSize: 12,
         fontWeight: '500',
-        marginLeft: 4,
     },
     listContent: {
         paddingBottom: 20,
@@ -367,7 +379,15 @@ const styles = StyleSheet.create({
     restrictedText: {
         marginLeft: 8,
         fontSize: 14,
-    }
+    },
+    newBadge: {
+        position: 'absolute',
+        right: 0,
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
 });
 
 export default EventListScreen;

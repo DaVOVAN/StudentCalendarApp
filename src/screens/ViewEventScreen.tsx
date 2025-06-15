@@ -36,7 +36,7 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
   const [error, setError] = useState<string | null>(null);
   const { deleteEvent } = useCalendar();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { calendars } = useCalendar();
+  const { calendars, syncEvents } = useCalendar();
   const calendar = calendars.find(c => c.id === route.params.calendarId);
   const { user } = useAuth();
   const role = calendar?.role || 'guest';
@@ -117,8 +117,21 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
       }
     };
 
+  const markAsSeen = async () => {
+    if (!eventId) return;
+    try {
+      await api.post(`/events/${eventId}/mark-seen`);
+      if (calendarId) {
+        await syncEvents(calendarId);
+      }
+    } catch (error) {
+      console.error('Ошибка при отметке события:', error);
+    }
+  };
+
   useEffect(() => {
     fetchEvent();
+    markAsSeen();
   }, [eventId]);
 
     useFocusEffect(
@@ -199,7 +212,6 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
             </View>
           </View>
 
-          {/* Правая часть с кнопками */}
           <View style={styles.actions}>
             <TouchableOpacity 
               onPress={handleEdit}

@@ -188,6 +188,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                     {translateRole(item.role || 'member')}
                 </Text>
             </View>
+            {item.unseenCount && item.unseenCount > 0 ? (
+                <View style={[
+                    localStyles.unseenBadge, 
+                    { backgroundColor: colors.emergency }
+                    ]}>
+                    <Text style={localStyles.unseenText}>
+                        {item.unseenCount > 9 ? '9+' : item.unseenCount}
+                    </Text>
+                </View>
+            ) : null}
             <MaterialIcons name="chevron-right" size={24} color={colors.text} />
         </TouchableOpacity>
     ), [colors]);
@@ -215,7 +225,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                         }
                     ]}
                 >
-                    <MaterialIcons name="calendar-monthG" size={28} color={colors.accentText} />
+                    <MaterialIcons name="calendar-month" size={28} color={colors.accentText} />
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -354,6 +364,19 @@ const localStyles = StyleSheet.create({
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    unseenBadge: {
+        borderRadius: 8,
+        minWidth: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    unseenText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
     },
 });
 

@@ -80,6 +80,7 @@ export const CalendarProvider: React.FC<{ children: ReactNode }> = ({ children }
         const response = await api.get(`/calendars/${calendarId}/events`);
         const serverEvents = response.data.map((serverEvent: any) => ({
         ...serverEvent,
+        is_seen: serverEvent.is_seen,
         start_datetime: serverEvent.start_datetime || '',
         end_datetime: serverEvent.end_datetime || '',
         syncStatus: 'synced' as const

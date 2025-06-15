@@ -1,5 +1,8 @@
 {
   "expo": {
+    "plugins": [
+      "react-native-reanimated"
+    ],
     "name": "StudentCalendarApp",
     "slug": "StudentCalendarApp",
     "version": "1.0.0",
@@ -20,7 +23,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.StudentCalendarApp"
+      "package": "com.vovandev.StudentCalendarApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"

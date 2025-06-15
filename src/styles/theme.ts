@@ -49,7 +49,7 @@ export const getThemeColors = (theme: Theme) => {
         secondaryText: '#9F6B7E',
         calendarDayBackground: '#FFFAFB',
         calendarOtherMonth: '#F8D7E3',
-        emergency: '#FF3366',   // Яркий фуксия
+        emergency: '#ff85a3',   // Яркий фуксия
         modalOverlay: 'rgba(255, 220, 227, 0.85)',
         buttonHover: '#FFC2D6',
         border: '#E8B4C8',
@@ -66,7 +66,7 @@ export const getThemeColors = (theme: Theme) => {
         secondaryText: '#5C8A9F',
         calendarDayBackground: '#D4EDF4',
         calendarOtherMonth: '#A2C4D9',
-        emergency: '#3a4fa5',   // Коралловый
+        emergency: '#368ceb',   // Коралловый
         modalOverlay: 'rgba(168, 218, 220, 0.9)',
         buttonHover: '#89C2D9',
         border: '#61A5C2'

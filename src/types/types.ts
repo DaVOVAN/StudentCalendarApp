@@ -11,6 +11,7 @@ export interface Calendar {
     mentorVisibility: boolean;
     allowGuests: boolean;
   };
+  unseenCount?: number;
 }
 
 export type EventType = 'lab' | 'checkpoint' | 'final' | 'meeting' | 'conference' | 'public_event' | 'commission' | 'other';
@@ -27,6 +28,7 @@ export interface CalendarEvent {
   is_emergency?: boolean;
   attach_to_end: boolean;
   sync_status?: 'synced' | 'pending';
+  is_seen?: boolean;
 }
 
 export type Theme = 'light' | 'dark' | 'pink' | 'ocean' | 'forest' | 'military';
