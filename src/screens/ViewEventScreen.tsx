@@ -8,7 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { ru } from 'date-fns/locale';
 import { format } from 'date-fns';
 import api from '../api/client';
-import { translateEventType, getEventIcon } from '../utils/eventUtils';
+import { getEventIcon } from '../utils/eventUtils';
 import { TouchableOpacity } from 'react-native';
 import { EventType } from '../types/types';
 import { useCalendar } from '../contexts/CalendarContext';
@@ -183,9 +183,7 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.contentWrapper}>
-        {/* Заголовок */}
         <View style={styles.header}>
-          {/* Левая часть с контентом */}
           <View style={styles.headerContent}>
             <MaterialIcons 
               name={getEventIcon(event.type)} 
@@ -235,7 +233,6 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
           </View>
         </View>
 
-        {/* Информационная панель */}
         <View style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
           {event.attach_to_end ? (
             <>
@@ -280,7 +277,6 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
           )}
         </View>
 
-        {/* Детали */}
         {event.location && (
           <Section title="Место проведения" icon="place">
             <Text style={[styles.detailText, { color: colors.text }]}>{event.location}</Text>

@@ -1,8 +1,8 @@
 // src/api/client.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import Constants from 'expo-constants';
 
 
 declare module 'axios' {
@@ -36,7 +36,7 @@ const getUserFromToken = (accessToken: string) => {
 };
 
 const api = axios.create({
-  baseURL: process.env.API_URL || 'http://46.146.235.134:3000/api',
+  baseURL: Constants.expoConfig?.extra?.apiUrl || 'https://vovandev.ru/api',
 });
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {

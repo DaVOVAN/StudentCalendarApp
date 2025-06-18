@@ -4,7 +4,6 @@ import { View, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 import api from '../api/client';
-import axios from 'axios';
 
 interface User {
   id: string;

@@ -5,7 +5,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useCalendar } from '../contexts/CalendarContext';
 import { useAuth } from '../contexts/AuthContext';
 import MainButton from '../components/MainButton';
-import { MaterialIcons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
@@ -22,7 +21,7 @@ interface Props {
 const CalendarSettingsScreen: React.FC<Props> = ({ navigation, route }) => {
   const { calendarId } = route.params;
   const { colors } = useTheme();
-  const { deleteCalendar, syncCalendars } = useCalendar();
+  const { deleteCalendar } = useCalendar();
   const { user } = useAuth();
   const [mentorVisibility, setMentorVisibility] = useState(true);
   const [allowGuests, setAllowGuests] = useState(true);
@@ -59,7 +58,7 @@ const CalendarSettingsScreen: React.FC<Props> = ({ navigation, route }) => {
       navigation.goBack();
     } catch (error) {
       setError('Не удалось сохранить настройки');
-      console.error('Error updating settings:', error);
+      console.error('Ошибка обновления настроек:', error);
     } finally {
       setIsSaving(false);
     }

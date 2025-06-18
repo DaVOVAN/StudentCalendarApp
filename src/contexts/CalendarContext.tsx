@@ -20,6 +20,7 @@ interface CalendarContextType {
     getCalendarMembers: (calendarId: string) => Promise<CalendarMember[]>;
     updateEvent: (calendarId: string, eventId: string, event: CalendarEvent) => Promise<void>;
     deleteEvent: (calendarId: string, eventId: string) => Promise<void>;
+    leaveCalendar: (calendarId: string) => Promise<void>;
 }
 
 const CalendarContext = createContext<CalendarContextType>({} as CalendarContextType);
@@ -327,6 +328,19 @@ const addCalendar = useCallback((name: string) => {
     }
     }, [syncCalendars]);
 
+    const leaveCalendar = useCallback(async (calendarId: string) => {
+    try {
+        await api.delete(`/calendars/${calendarId}/memberme`);
+        updateCalendars(prev => prev.filter(cal => cal.id !== calendarId));
+    } catch (error) {
+        console.error('Ошибка выхода из календаря:', error);
+        
+        let errorMessage = 'Не удалось покинуть календарь';
+        
+        Alert.alert('Ошибка', errorMessage);
+    }
+    }, [updateCalendars]);
+
     const getCalendarMembers = useCallback(async (calendarId: string) => {
     const response = await api.get(`/calendars/${calendarId}/members`);
     return response.data;
@@ -373,7 +387,8 @@ const addCalendar = useCallback((name: string) => {
             joinCalendar,
             getCalendarMembers,
             updateEvent,
-            deleteEvent
+            deleteEvent,
+            leaveCalendar
         }}>
             {children}
         </CalendarContext.Provider>

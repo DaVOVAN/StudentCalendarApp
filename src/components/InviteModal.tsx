@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
-import { MaterialIcons } from '@expo/vector-icons';
 import api from '../api/client';
 
 const InviteModal: React.FC<{

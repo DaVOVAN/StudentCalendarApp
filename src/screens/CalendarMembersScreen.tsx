@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Modal, TouchableWithoutFeedback } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
-import { useCalendar } from '../contexts/CalendarContext';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import api from '../api/client';
@@ -50,14 +49,12 @@ const CalendarMembersScreen: React.FC = () => {
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(inviteCode);
-    Alert.alert('Успешно', 'Код скопирован в буфер');
   };
 
   const regenerateCode = async () => {
     try {
       const res = await api.post(`/calendars/${calendarId}/regenerate-code`);
       setInviteCode(res.data.code);
-      Alert.alert('Успешно', 'Код обновлен');
     } catch (error) {
       Alert.alert('Ошибка', 'Не удалось обновить код');
     }

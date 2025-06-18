@@ -1,8 +1,5 @@
 {
   "expo": {
-    "plugins": [
-      "react-native-reanimated"
-    ],
     "name": "StudentCalendarApp",
     "slug": "StudentCalendarApp",
     "version": "1.0.0",
@@ -23,15 +20,18 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.vovandev.StudentCalendarApp"
+      "package": "com.vovandev.StudentCalendarApp",
+      "usesCleartextTraffic": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
+      "apiUrl": "https://vovandev.ru/api",
       "eas": {
         "projectId": "f38aa2ad-f257-4fa9-9d5d-aa4ed6bbf9be"
       }
-    }
+    },
+    "owner": "da_vovan"
   }
 }

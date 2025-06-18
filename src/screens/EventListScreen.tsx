@@ -7,7 +7,7 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { format, isSameDay } from 'date-fns';
-import { CalendarEvent, EventType } from '../types/types';
+import { CalendarEvent } from '../types/types';
 import MainButton from '../components/MainButton';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -208,8 +208,9 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
         );
     }
 
-    return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.primary }]}>
+return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.primary }]}>
+        <View style={styles.container}>
             {isRestrictedView && (
                 <View style={[
                     styles.restrictedBanner, 
@@ -247,9 +248,10 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                         </Text>
                     </View>
                 }
+                style={styles.list}
             />
 
-            <View style = {styles.buttonContainer}>
+            <View style={styles.buttonContainer}>
                 <MainButton
                     title="Добавить событие"
                     onPress={() => navigation.navigate('AddEvent', { 
@@ -267,17 +269,28 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                     disabled={user?.isGuest}
                 />
             </View>
-        </SafeAreaView>
-    );
+        </View>
+    </SafeAreaView>
+);
 };
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+    },
     container: {
         flex: 1,
         padding: 20,
     },
+    list: {
+        flex: 1,
+        marginBottom: 60,
+    },
     buttonContainer: {
-        marginBottom: -42
+        position: 'absolute',
+        bottom: 0,
+        left: 20,
+        right: 20,
     },
     dateTitle: {
         fontSize: 24,

@@ -32,6 +32,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const insets = useSafeAreaInsets();
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const { leaveCalendar } = useCalendar();
+    const [selectedCalendar, setSelectedCalendar] = useState<Calendar | null>(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -167,40 +169,48 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     </View>
     );
 
-    const renderCalendarItem = useCallback(({ item }: { item: Calendar }) => (
-        <TouchableOpacity
-            onPress={() => navigation.navigate('Calendar', { calendarId: item.id })}
-            style={[localStyles.calendarItem, { 
-            backgroundColor: colors.secondary,
-            borderLeftWidth: 4,
-            borderLeftColor: item.role === 'owner' ? colors.emergency : colors.accent
-            }]}
-        >
-            <View style={{ flex: 1 }}>
-                <Text 
-                    style={[localStyles.calendarText, { color: colors.text }]} 
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                >
-                    {item.name}
-                </Text>
-                <Text style={{ color: colors.secondaryText, fontSize: 12 }}>
-                    {translateRole(item.role || 'member')}
-                </Text>
-            </View>
-            {item.unseenCount && item.unseenCount > 0 ? (
-                <View style={[
-                    localStyles.unseenBadge, 
-                    { backgroundColor: colors.emergency }
-                    ]}>
-                    <Text style={localStyles.unseenText}>
-                        {item.unseenCount > 9 ? '9+' : item.unseenCount}
+    const renderCalendarItem = useCallback(({ item }: { item: Calendar }) => {
+        const isOwner = item.role === 'owner';
+    
+        return (
+            <TouchableOpacity
+                onPress={() => navigation.navigate('Calendar', { calendarId: item.id })}
+                onLongPress={!isOwner ? () => {
+                    setSelectedCalendar(item);
+                    setIsActionMenuVisible(true);
+                } : undefined}
+                style={[localStyles.calendarItem, { 
+                backgroundColor: colors.secondary,
+                borderLeftWidth: 4,
+                borderLeftColor: item.role === 'owner' ? colors.emergency : colors.accent
+                }]}
+            >
+                <View style={{ flex: 1 }}>
+                    <Text 
+                        style={[localStyles.calendarText, { color: colors.text }]} 
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                    >
+                        {item.name}
+                    </Text>
+                    <Text style={{ color: colors.secondaryText, fontSize: 12 }}>
+                        {translateRole(item.role || 'member')}
                     </Text>
                 </View>
-            ) : null}
-            <MaterialIcons name="chevron-right" size={24} color={colors.text} />
-        </TouchableOpacity>
-    ), [colors]);
+                {item.unseenCount && item.unseenCount > 0 ? (
+                    <View style={[
+                        localStyles.unseenBadge, 
+                        { backgroundColor: colors.emergency }
+                        ]}>
+                        <Text style={localStyles.unseenText}>
+                            {item.unseenCount > 9 ? '9+' : item.unseenCount}
+                        </Text>
+                    </View>
+                ) : null}
+                <MaterialIcons name="chevron-right" size={24} color={colors.text} />
+            </TouchableOpacity>
+        );
+    }, [colors, navigation]);
 
     return (
         <View style={[globalStyles.container, { backgroundColor: colors.primary }, localStyles.container]}>
@@ -265,9 +275,14 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
 
             <ActionMenu
-                isVisible={isActionMenuVisible}
-                onDeleteCalendar={handleDeleteCalendar}
-                onClose={() => setIsActionMenuVisible(false)}
+            isVisible={isActionMenuVisible}
+            onClose={() => setIsActionMenuVisible(false)}
+            onForgetCalendar={() => {
+                if (selectedCalendar) {
+                leaveCalendar(selectedCalendar.id);
+                }
+            }}
+            userRole={selectedCalendar?.role}
             />
 
             <AddCalendarModal />
@@ -280,7 +295,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 visible={showInviteModal}
                 onClose={() => setShowInviteModal(false)}
                 onJoinSuccess={(calendarId) => {
-                    navigation.navigate('Calendar', { calendarId });
+                    syncCalendars();
                 }}
             />
         </View>
