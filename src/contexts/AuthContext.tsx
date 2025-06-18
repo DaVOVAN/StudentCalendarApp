@@ -4,7 +4,6 @@ import { View, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 import api from '../api/client';
-import axios from 'axios';
 
 interface User {
   id: string;
@@ -49,16 +48,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       setUser(userData);
       
-      console.log('Данные аутентификации успешно сохранены');
     } catch (error) {
-      console.error('Ошибка сохранения данных:', {
-        error,
-        responseData: {
-          accessToken: responseData?.accessToken?.slice(0, 10) + '...',
-          refreshToken: responseData?.refreshToken?.slice(0, 10) + '...',
-          user: responseData?.user
-        }
-      });
+      console.error('Ошибка сохранения данных:', error);
       throw new Error('Ошибка сохранения данных аутентификации');
     }
   };
@@ -67,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const decoded: any = jwtDecode(accessToken);
     return {
       id: decoded.sub,
-      displayName: decoded.username || 'Гость',
+      displayName: decoded.displayName || decoded.username || 'Гость',
       isGuest: decoded.is_guest || false
     };
   };
@@ -97,31 +88,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         '@refresh_token'
       ]);
 
-      if (!refreshToken[1]) {
-        return await createGuestSession();
-      }
-
-      try {
-        jwtDecode(accessToken[1]!);
-      } catch {
-        const response = await api.post('/auth/refresh', { refreshToken: refreshToken[1] }, {
-          headers: {
-            'X-Request-Source': 'refresh-token'
+      if (refreshToken[1]) {
+        try {
+          const decoded = jwtDecode<{ exp?: number }>(refreshToken[1]);
+          if (decoded.exp && decoded.exp * 1000 > Date.now()) {
+            const response = await api.post('/auth/refresh', { 
+              refreshToken: refreshToken[1] 
+            });
+            
+            await AsyncStorage.multiSet([
+              ['@access_token', response.data.accessToken],
+              ['@refresh_token', response.data.refreshToken],
+              ['@user', JSON.stringify(response.data.user)]
+            ]);
+            
+            setUser(response.data.user);
+            return;
           }
-        });
-        
-        await storeAuthData(response.data);
-        return;
+        } catch (error) {
+          console.log('Refresh failed:', error);
+        }
       }
 
-      const userData = await AsyncStorage.getItem('@user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
-
+      const guestResponse = await api.post('/auth/guest');
+      await AsyncStorage.multiSet([
+        ['@access_token', guestResponse.data.accessToken],
+        ['@refresh_token', guestResponse.data.refreshToken],
+        ['@user', JSON.stringify(guestResponse.data.user)]
+      ]);
+      setUser(guestResponse.data.user);
+      
     } catch (error) {
-      console.log('Ошибка инициализации:', error);
-      await createGuestSession();
+      console.log('Auth init error:', error);
+      const fallbackResponse = await api.post('/auth/guest');
+      await AsyncStorage.multiSet([
+        ['@access_token', fallbackResponse.data.accessToken],
+        ['@refresh_token', fallbackResponse.data.refreshToken],
+        ['@user', JSON.stringify(fallbackResponse.data.user)]
+      ]);
+      setUser(fallbackResponse.data.user);
     } finally {
       setIsInitializing(false);
     }
@@ -148,11 +153,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       await api.post('/auth/logout');
-      const guestResponse = await api.post('/auth/guest');
-      await storeAuthData(guestResponse.data);
     } catch (error) {
       console.log('Ошибка выхода:', error);
+    } finally {
       await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+      await createGuestSession();
     }
   };
 
@@ -161,22 +166,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const refreshToken = await AsyncStorage.getItem('@refresh_token');
       
       if (!refreshToken) {
-        await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-        return createGuestSession();
+        throw new Error('RefreshTokenMissing');
       }
 
       const response = await api.post('/auth/refresh', { refreshToken });
-      await storeAuthData(response.data);
-    } catch (error) {
-      console.log('Ошибка обновления токена:', error);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 400) {
-          await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-          await createGuestSession();
-        }
-      }
       
+      if (!response.data.accessToken || !response.data.refreshToken) {
+        throw new Error('InvalidTokenResponse');
+      }
+
+      const user = await getUserFromToken(response.data.accessToken);
+      
+      await AsyncStorage.multiSet([
+        ['@access_token', response.data.accessToken],
+        ['@refresh_token', response.data.refreshToken],
+        ['@user', JSON.stringify(user)]
+      ]);
+
+      return response.data;
+
+    } catch (error) {
+      await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+      const guestResponse = await api.post('/auth/guest');
+      await AsyncStorage.multiSet([
+        ['@access_token', guestResponse.data.accessToken],
+        ['@refresh_token', guestResponse.data.refreshToken],
+        ['@user', JSON.stringify(guestResponse.data.user)]
+      ]);
       throw error;
     }
   };
@@ -184,32 +200,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     initAuth();
   }, []);
-  
+
   useEffect(() => {
     const checkTokenExpiration = async () => {
       try {
-        const accessToken = await AsyncStorage.getItem('@access_token');
-        if (!accessToken) return;
+        const [accessToken, refreshToken] = await AsyncStorage.multiGet([
+          '@access_token', 
+          '@refresh_token'
+        ]);
 
-        const decoded = jwtDecode<{ exp?: number }>(accessToken);
-        if (!decoded.exp) {
-          console.log('Токен не содержит срока действия');
+        if (!accessToken[1] || !refreshToken[1]) return;
+
+        const decodedAccess = jwtDecode<{ exp?: number }>(accessToken[1]);
+        const decodedRefresh = jwtDecode<{ exp?: number }>(refreshToken[1]);
+
+        if (decodedRefresh.exp && decodedRefresh.exp * 1000 < Date.now()) {
           await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+          await createGuestSession();
           return;
         }
 
-        if (decoded.exp * 1000 < Date.now() + 60000) { 
+        if (decodedAccess.exp && decodedAccess.exp * 1000 < Date.now() + 300000) {
           await refreshSession();
         }
       } catch (error) {
-        console.log('Ошибка проверки токена:', error);
+        console.log('Token check error:', error);
         await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
+        await createGuestSession();
       }
     };
 
     const interval = setInterval(checkTokenExpiration, 60000);
-    return () => clearInterval(interval);
-  }, [refreshSession]);
+      return () => clearInterval(interval);
+    }, [refreshSession]);
 
   if (isInitializing) {
     return (

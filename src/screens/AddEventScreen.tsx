@@ -94,7 +94,6 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
             }
             }
         } else {
-            // Логика для нового события
             const defaultDate = new Date(selectedDate || Date.now());
             if (eventType === 'lab') {
             const newEnd = roundMinutes(new Date(defaultDate));
@@ -258,6 +257,7 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
         try {
             if (isEdit && eventId) {
             await api.put(`/events/${eventId}`, eventData);
+            await syncEvents(calendarId!);
             } else {
             const targetCalendars = isShared ? selectedCalendars : [calendarId as string];
             await Promise.all(
@@ -407,13 +407,13 @@ const AddEventScreen: React.FC<AddEventScreenProps> = ({ route }) => {
                         <Picker.Item label="Итоговая работа" value="final" />
                         <Picker.Item label="Собрание" value="meeting" />
                         <Picker.Item label="Конференция" value="conference" />
-                        <Picker.Item label="Общественное мероприятие" value="event" />
+                        <Picker.Item label="Общественное мероприятие" value="public_event" />
                         <Picker.Item label="Комиссия" value="commission" />
                         <Picker.Item label="Другое" value="other" />
                     </Picker>
                 </View>
 
-                {(eventType === 'meeting' || eventType === 'conference') && (
+                {(eventType === 'meeting' || eventType === 'conference' || eventType === 'public_event' || eventType === 'commission' || eventType === 'other') && (
                     <TextInput
                         style={[styles.input, { 
                             borderColor: colors.border,

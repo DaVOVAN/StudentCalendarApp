@@ -8,11 +8,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { ru } from 'date-fns/locale';
 import { format } from 'date-fns';
 import api from '../api/client';
-import { translateEventType, getEventIcon } from '../utils/eventUtils';
+import { getEventIcon } from '../utils/eventUtils';
 import { TouchableOpacity } from 'react-native';
 import { EventType } from '../types/types';
 import { useCalendar } from '../contexts/CalendarContext';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useAuth } from '../contexts/AuthContext';
 
 type EventDetails = {
   id: string;
@@ -35,6 +36,10 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
   const [error, setError] = useState<string | null>(null);
   const { deleteEvent } = useCalendar();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { calendars, syncEvents } = useCalendar();
+  const calendar = calendars.find(c => c.id === route.params.calendarId);
+  const { user } = useAuth();
+  const role = calendar?.role || 'guest';
 
 
   const handleDelete = async () => {
@@ -112,9 +117,28 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
       }
     };
 
+  const markAsSeen = async () => {
+    if (!eventId) return;
+    try {
+      await api.post(`/events/${eventId}/mark-seen`);
+      if (calendarId) {
+        await syncEvents(calendarId);
+      }
+    } catch (error) {
+      console.error('Ошибка при отметке события:', error);
+    }
+  };
+
   useEffect(() => {
     fetchEvent();
+    markAsSeen();
   }, [eventId]);
+
+    useFocusEffect(
+      useCallback(() => {
+          fetchEvent();
+      }, [eventId])
+    );
 
   const formatSafeDate = (dateString?: string | null) => {
     if (!dateString) return 'Дата не указана';
@@ -159,9 +183,7 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.contentWrapper}>
-        {/* Заголовок */}
         <View style={styles.header}>
-          {/* Левая часть с контентом */}
           <View style={styles.headerContent}>
             <MaterialIcons 
               name={getEventIcon(event.type)} 
@@ -188,29 +210,29 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
             </View>
           </View>
 
-          {/* Правая часть с кнопками */}
           <View style={styles.actions}>
             <TouchableOpacity 
               onPress={handleEdit}
+              disabled={user?.isGuest || role === 'member'}
               style={styles.actionButton}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="edit" size={24} color={colors.text} />
+              <MaterialIcons name="edit" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
             </TouchableOpacity>
             
             <TouchableOpacity 
               onPress={handleDelete}
+              disabled={user?.isGuest || role === 'member'}
               style={styles.actionButton}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="delete-outline" size={24} color={colors.text} />
+              <MaterialIcons name="delete-outline" size={24} color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Информационная панель */}
         <View style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
           {event.attach_to_end ? (
             <>
@@ -255,7 +277,6 @@ const ViewEventScreen: React.FC<{ route: RouteProp<RootStackParamList, 'ViewEven
           )}
         </View>
 
-        {/* Детали */}
         {event.location && (
           <Section title="Место проведения" icon="place">
             <Text style={[styles.detailText, { color: colors.text }]}>{event.location}</Text>

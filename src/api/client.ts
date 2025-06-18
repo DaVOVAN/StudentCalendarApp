@@ -1,8 +1,8 @@
 // src/api/client.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import Constants from 'expo-constants';
 
 
 declare module 'axios' {
@@ -36,7 +36,7 @@ const getUserFromToken = (accessToken: string) => {
 };
 
 const api = axios.create({
-  baseURL: process.env.API_URL || 'http://46.146.235.134:3000/api',
+  baseURL: Constants.expoConfig?.extra?.apiUrl || 'https://vovandev.ru/api',
 });
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
@@ -52,57 +52,46 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config;
     
-    if (error.response?.status === 401 && originalRequest && !originalRequest?._retry) {
+    if ((error.response?.status === 401 || error.response?.status === 403) 
+      && originalRequest 
+      && !originalRequest?._retry) {
+      
       try {
         originalRequest._retry = true;
         const refreshToken = await AsyncStorage.getItem('@refresh_token');
         
-        if (!refreshToken) {
-          throw new Error('RefreshTokenMissing');
-        }
+        if (!refreshToken) throw new Error('RefreshTokenMissing');
 
         const refreshResponse = await axios.post(
-          `${api.defaults.baseURL}/auth/refresh`, 
+          `${api.defaults.baseURL}/auth/refresh`,
           { refreshToken },
-          { 
-            headers: { 
-              'X-Request-Source': 'refresh-token',
-              'Authorization': ''
-            } 
-          }
+          { headers: { 'X-Request-Source': 'token-refresh' } }
         );
 
-        if (!refreshResponse.data?.accessToken) {
-          throw new Error('Invalid server response');
-        }
-
-        const user = await getUserFromToken(refreshResponse.data.accessToken);
-        
         await AsyncStorage.multiSet([
           ['@access_token', refreshResponse.data.accessToken],
-          ['@refresh_token', refreshToken],
-          ['@user', JSON.stringify(user)]
+          ['@refresh_token', refreshResponse.data.refreshToken],
+          ['@user', JSON.stringify(refreshResponse.data.user)]
         ]);
 
         originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
-        
         return api(originalRequest);
-      } catch (refreshError: unknown) {
-        let errorMessage = 'Unknown error';
-        if (refreshError instanceof Error) {
-          errorMessage = refreshError.message;
-          console.error('Ошибка обновления токена:', {
-            message: errorMessage,
-            stack: refreshError.stack
-          });
-        }
+      } catch (refreshError) {
+        const guestResponse = await axios.post(
+          `${api.defaults.baseURL}/auth/guest`,
+          {},
+          { headers: { 'X-Request-Source': 'guest-fallback' } }
+        );
         
-        await AsyncStorage.multiRemove(['@access_token', '@refresh_token', '@user']);
-        window.location.reload();
-        return Promise.reject(new Error(errorMessage));
+        await AsyncStorage.multiSet([
+          ['@access_token', guestResponse.data.accessToken],
+          ['@refresh_token', guestResponse.data.refreshToken],
+          ['@user', JSON.stringify(guestResponse.data.user)]
+        ]);
+        
+        return Promise.reject(new Error('SessionRefreshFailed'));
       }
     }
-    
     return Promise.reject(error);
   }
 );

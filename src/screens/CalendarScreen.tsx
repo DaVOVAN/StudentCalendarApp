@@ -22,8 +22,8 @@ import { CalendarEvent } from '../types/types';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
-import { EventType } from '../types/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../contexts/AuthContext';
 
 const CalendarDay: React.FC<{
     date: Date;
@@ -32,6 +32,7 @@ const CalendarDay: React.FC<{
     onLongPress: (date: Date) => void;
     isEmergency: boolean;
     isCurrentMonth: boolean;
+    hasUnseen: boolean;
 }> = ({ date, onDatePress, hasEvent, onLongPress, isEmergency, isCurrentMonth }) => {
     const { colors } = useTheme();
     
@@ -61,7 +62,7 @@ const CalendarDay: React.FC<{
 const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
     const { calendarId } = route.params;
-    const { calendars, addEvent, updateCalendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar();
+    const { calendars, clearDateEvents, addTestEvent, syncEvents, syncCalendars } = useCalendar(); 
     const { colors } = useTheme();
     
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -74,25 +75,33 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
 
     const calendar = calendars.find(c => c.id === calendarId);
     const eventsForCalendar = calendar?.events || [];
+    const { user } = useAuth();
+    const role = calendar?.role || 'guest';
+    
+    const isOwner = role === 'owner';
 
     const eventsByDate = useMemo(() => {
-    const groupedEvents: Record<string, CalendarEvent[]> = {};
-    
-    eventsForCalendar.forEach(event => {
-        if (event.sync_status === 'pending') return;
+        const groupedEvents: Record<string, CalendarEvent[]> = {};
+        const unseenDates: Set<string> = new Set();
         
-        const baseDate = event.attach_to_end && event.end_datetime 
-        ? event.end_datetime 
-        : event.start_datetime;
+        eventsForCalendar.forEach(event => {
+            if (event.sync_status === 'pending') return;
+            
+            const baseDate = event.attach_to_end && event.end_datetime 
+            ? event.end_datetime 
+            : event.start_datetime;
 
-        if (!baseDate) return;
-        
-        const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
-        groupedEvents[dateKey] = groupedEvents[dateKey] || [];
-        groupedEvents[dateKey].push(event);
-    });
+            if (!baseDate) return;
+            const dateKey = format(new Date(baseDate), 'yyyy-MM-dd');
+            groupedEvents[dateKey] = groupedEvents[dateKey] || [];
+            groupedEvents[dateKey].push(event);
 
-    return groupedEvents;
+            if (!event.is_seen) {
+                unseenDates.add(dateKey);
+            }
+        });
+
+        return { groupedEvents, unseenDates };
     }, [eventsForCalendar]);
 
     useEffect(() => {
@@ -139,45 +148,81 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
     return (
         <View style={[styles.container, { backgroundColor: colors.primary }]}>
             <View style={styles.header}>
+                <TouchableOpacity 
+                    onPress={() => isOwner && navigation.navigate('CalendarSettings', { calendarId })}
+                    style={styles.settingsButton}
+                    disabled={!isOwner}
+                >
+                    <MaterialIcons 
+                        name="settings" 
+                        size={24} 
+                        color={isOwner ? colors.text : colors.secondaryText} 
+                    />
+                </TouchableOpacity>
+                
                 <Text style={[styles.title, { color: colors.text }]}>{calendar?.name}</Text>
-                <View style={styles.monthControls}>
-                    <TouchableOpacity onPress={() => setCurrentMonth(prev => subMonths(prev, 1))}>
-                        <MaterialIcons name="chevron-left" size={28} color={colors.text} />
-                    </TouchableOpacity>
-                    <Text style={[styles.monthText, { color: colors.text }]}>
-                        {format(currentMonth, 'LLLL yyyy', { locale: ru })}
-                    </Text>
-                    <TouchableOpacity onPress={() => setCurrentMonth(prev => addMonths(prev, 1))}>
-                        <MaterialIcons name="chevron-right" size={28} color={colors.text} />
-                    </TouchableOpacity>
-                </View>
+                
+                <TouchableOpacity 
+                    onPress={() => navigation.navigate('CalendarMembers', { calendarId })}
+                    style={styles.membersButton}
+                    disabled={user?.isGuest || role === 'member'}
+                >
+                    <MaterialIcons 
+                        name="people" 
+                        size={24} 
+                        color={(user?.isGuest || role === 'member') ? colors.secondaryText : colors.text} 
+                    />
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.monthControls}>
+                <TouchableOpacity onPress={() => setCurrentMonth(prev => subMonths(prev, 1))}>
+                    <MaterialIcons name="chevron-left" size={28} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.monthText, { color: colors.text }]}>
+                    {format(currentMonth, 'LLLL yyyy', { locale: ru })}
+                </Text>
+                <TouchableOpacity onPress={() => setCurrentMonth(prev => addMonths(prev, 1))}>
+                    <MaterialIcons name="chevron-right" size={28} color={colors.text} />
+                </TouchableOpacity>
             </View>
 
             <View style={styles.grid}>
                 {eachDayOfInterval({ start: startDate, end: endDate }).map((date, index) => {
+                    const dateKey = format(date, 'yyyy-MM-dd');
+                    const hasUnseen = eventsByDate.unseenDates.has(dateKey);
                     const isCurrentMonth = isSameMonth(date, currentMonth);
-                    const hasEvent = Object.keys(eventsByDate).includes(format(date, 'yyyy-MM-dd'));
-                    const isEmergency = eventsByDate[format(date, 'yyyy-MM-dd')]?.some(e => e.is_emergency);
+                    const hasEvent = !!eventsByDate.groupedEvents[dateKey];
+                    const isEmergency = eventsByDate.groupedEvents[dateKey]?.some(e => e.is_emergency);
 
                     return (
-                        <CalendarDay
-                            key={index}
-                            date={date}
-                            onDatePress={handleDatePress}
-                            hasEvent={hasEvent}
-                            onLongPress={handleLongPress}
-                            isEmergency={isEmergency}
-                            isCurrentMonth={isCurrentMonth}
-                        />
+                    <Pressable
+                        key={index}
+                        style={[
+                        styles.dayCell, {borderWidth: 2, borderColor: colors.calendarDayBackground},
+                        { backgroundColor: colors.calendarDayBackground },
+                        !isCurrentMonth && { backgroundColor: colors.calendarOtherMonth, borderColor: colors.calendarOtherMonth },
+                        isEmergency && { backgroundColor: colors.emergency},
+                        hasUnseen && {borderColor: colors.text}
+                        ]}
+                        onPress={() => handleDatePress(date)}
+                        onLongPress={() => handleLongPress(date)}
+                    >
+                        <Text style={{ 
+                        color: isCurrentMonth ? colors.text : colors.secondaryText,
+                        fontSize: 16,
+                        fontWeight: isCurrentMonth ? '500' : '300'
+                        }}>
+                        {format(date, 'd')}
+                        </Text>
+                        
+                        {hasEvent && (
+                        <View style={[styles.eventIndicator, { backgroundColor: colors.text }]} />
+                        )}
+                    </Pressable>
                     );
                 })}
             </View>
-
-            <TouchableOpacity 
-            onPress={() => navigation.navigate('CalendarMembers', { calendarId })}
-            style={styles.membersButton}>
-            <MaterialIcons name="people" size={24} color={colors.text} />
-            </TouchableOpacity>
 
             <ActionMenu
                 isVisible={isActionMenuVisible}
@@ -185,8 +230,9 @@ const CalendarScreen: React.FC<{ route: any }> = ({ route }) => {
                 selectedDate={selectedDate}
                 onClearDate={(date) => {
                     if (calendarId) {
-                    clearDateEvents(calendarId, date);
-                }}}
+                        clearDateEvents(calendarId, date);
+                    }
+                }}
                 onAddTestEvent={(date) => calendarId && addTestEvent(calendarId, date)}
             />
         </View>
@@ -199,19 +245,31 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 20,
+        paddingHorizontal: 16,
+    },
+    settingsButton: {
+        padding: 8,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center',
-        marginBottom: 8,
+        flex: 1,
+        marginHorizontal: 8,
+    },
+    membersButton: {
+        padding: 8,
     },
     monthControls: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 8,
+        marginBottom: 20,
     },
     monthText: {
         fontSize: 20,
@@ -240,12 +298,14 @@ const styles = StyleSheet.create({
         top: 2,
         right: 2,
     },
-    membersButton: {
+    unseenIndicator: {
+        width: 6,
+        height: 6,
+        borderRadius: 4,
         position: 'absolute',
-        right: 20,
-        top: 20,
-        padding: 8,
-    }
+        top: 2,
+        right: 2,
+    },
 });
 
 export default CalendarScreen;

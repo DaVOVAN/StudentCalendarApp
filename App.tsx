@@ -6,7 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from './src/contexts/ThemeContext';
-import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { AuthProvider } from './src/contexts/AuthContext';
 import { CalendarProvider } from './src/contexts/CalendarContext';
 import HomeScreen from './src/screens/HomeScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
@@ -17,10 +17,12 @@ import ThemeSelectionScreen from './src/screens/ThemeSelectionScreen';
 import { RootStackParamList } from './src/types/navigation';
 import { MaterialIcons } from '@expo/vector-icons';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
-import { LogBox } from 'react-native';
+import { LogBox, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from './src/contexts/ThemeContext';
 import CalendarMembersScreen from './src/screens/CalendarMembersScreen';
+import CalendarSettingsScreen from './src/screens/CalendarSettingsScreen';
+import AppSettingsScreen from './src/screens/AppSettingsScreen';
 
 LogBox.ignoreLogs([
   'Non-serializable values were found in the navigation state',
@@ -31,13 +33,12 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const CustomHeader = ({ navigation, route }: any) => {
   const { colors } = useTheme();
-  const { logout } = useAuth();
 
   return (
       <View style={[styles.headerContainer, { backgroundColor: colors.primary }]}>
         <View style={styles.headerContent}>
           {route.name === 'Home' ? (
-            <TouchableOpacity onPress={logout} style={styles.button}>
+            <TouchableOpacity onPress={handleExitApp} style={styles.button}>
               <MaterialIcons name="exit-to-app" size={24} color={colors.text} />
             </TouchableOpacity>
           ) : (
@@ -58,6 +59,10 @@ const CustomHeader = ({ navigation, route }: any) => {
       </View>
   );
 };
+
+  const handleExitApp = () => {
+    BackHandler.exitApp();
+  };
 
 const App: React.FC = () => {
   return (
@@ -82,6 +87,8 @@ const App: React.FC = () => {
                     <Stack.Screen name="AddEvent" component={AddEventScreen} />
                     <Stack.Screen name="ThemeSelection" component={ThemeSelectionScreen} />
                     <Stack.Screen name="CalendarMembers" component={CalendarMembersScreen} />
+                    <Stack.Screen name="CalendarSettings" component={CalendarSettingsScreen} />
+                    <Stack.Screen name="AppSettings" component={AppSettingsScreen} />
                   </Stack.Navigator>
                 </NavigationContainer>
               </SafeAreaView>

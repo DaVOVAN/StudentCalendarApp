@@ -1,30 +1,37 @@
-// src/components/InviteModal.tsx
+// src/components/MentorInviteModal.tsx
 import React, { useState } from 'react';
 import { View, TextInput, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
+import { MaterialIcons } from '@expo/vector-icons';
 import api from '../api/client';
 
-const InviteModal: React.FC<{
+interface MentorInviteModalProps {
   visible: boolean;
   onClose: () => void;
-  onJoinSuccess: (calendarId: string) => void;
-}> = ({ visible, onClose, onJoinSuccess }) => {
+  onAddSuccess: () => void;
+  calendarId: string;
+}
+
+const MentorInviteModal: React.FC<MentorInviteModalProps> = ({ 
+  visible, 
+  onClose, 
+  onAddSuccess,
+  calendarId
+}) => {
   const { colors } = useTheme();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
 
-  const handleJoin = async () => {
+  const handleAddMentor = async () => {
     try {
-      const response = await api.post('/calendars/join', { code });
-      onJoinSuccess(response.data.calendarId);
+      await api.post('/calendars/add-mentor', { code, calendarId });
+      onAddSuccess();
       onClose();
     } catch (err: any) {
-      if (err.response?.status === 403) {
-        setError('Доступ для гостей закрыт.');
-      } else if (err.response?.status === 404) {
+      if (err.response?.status === 404) {
         setError('Неверный код или срок действия истек');
       } else {
-        setError('Не удалось присоединиться к календарю');
+        setError('Не удалось добавить наставника');
       }
     }
   };
@@ -34,7 +41,7 @@ const InviteModal: React.FC<{
       <View style={[styles.overlay, { backgroundColor: colors.modalOverlay }]}>
         <View style={[styles.modalContent, { backgroundColor: colors.primary }]}>
           <Text style={[styles.title, { color: colors.text }]}>
-            Введите код приглашения
+            Введите код наставника
           </Text>
           
           <TextInput
@@ -61,7 +68,7 @@ const InviteModal: React.FC<{
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: colors.accent }]}
-              onPress={handleJoin}>
+              onPress={handleAddMentor}>
               <Text style={{ color: colors.accentText }}>Добавить</Text>
             </TouchableOpacity>
             
@@ -119,4 +126,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default InviteModal;
+export default MentorInviteModal;

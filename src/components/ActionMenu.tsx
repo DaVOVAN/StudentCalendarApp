@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, TouchableWithoutFeedback } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
+import { UserRole } from '../utils/roleUtils';
 
 interface ActionMenuProps {
     isVisible: boolean;
@@ -13,6 +14,8 @@ interface ActionMenuProps {
     onClose: () => void;
     selectedDate?: Date | null;
     onAddTestEvent?: (date: Date) => void;
+    onForgetCalendar?: () => void;
+    userRole?: UserRole;
 }
 
 const ActionMenu: React.FC<ActionMenuProps> = ({ 
@@ -23,7 +26,9 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
     onTestButton,
     onClose,
     selectedDate,
-    onAddTestEvent
+    onAddTestEvent,
+    onForgetCalendar,
+    userRole
 }) => {
     const { colors } = useTheme();
 
@@ -57,6 +62,12 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
             icon: 'science' as const,
             handler: () => onAddTestEvent(selectedDate),
             color: colors.accent
+        }] : []),
+        ...(onForgetCalendar && userRole !== 'owner' ? [{
+            label: 'Забыть календарь', 
+            icon: 'exit-to-app' as const,
+            handler: () => onForgetCalendar(),
+            color: colors.emergency
         }] : [])
     ];
 

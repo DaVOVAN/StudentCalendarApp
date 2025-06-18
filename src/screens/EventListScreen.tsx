@@ -7,13 +7,14 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types/navigation';
 import { format, isSameDay } from 'date-fns';
-import { CalendarEvent, EventType } from '../types/types';
+import { CalendarEvent } from '../types/types';
 import MainButton from '../components/MainButton';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../api/client';
 import { ru } from 'date-fns/locale';
 import { translateEventType, getEventIcon } from '../utils/eventUtils';
+import { useAuth } from '../contexts/AuthContext';
 
 const EventListScreen: React.FC = () => {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -23,6 +24,8 @@ const EventListScreen: React.FC = () => {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
+    const { calendars } = useCalendar();
 
     const { calendarId, selectedDate: rawDate } = route.params || {};
     
@@ -40,6 +43,12 @@ const EventListScreen: React.FC = () => {
         }
         setSafeDate(new Date(rawDate));
     }, [rawDate]);
+
+    const calendar = calendars.find(c => c.id === calendarId);
+    const role = calendar?.role || 'guest';
+    const isRestrictedView = 
+        role === 'mentor' && 
+        calendar?.settings?.mentorVisibility === false;
 
     const loadEvents = useCallback(async () => {
         try {
@@ -109,8 +118,9 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
         >
             <View style={[
                 styles.eventItem, { 
-                    backgroundColor: colors.secondary,
-                    borderColor: colors.border,
+                    backgroundColor: !item.is_emergency ? colors.secondary : colors.secondary,
+                    borderWidth: !item.is_seen ? 2 : 1,
+                    borderColor: !item.is_seen ? colors.text : colors.border,
                     shadowColor: colors.text
                 }
             ]}>
@@ -140,6 +150,18 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                             </View>
                         )}
                     </View>
+
+                    {/* {!item.is_seen && item.is_emergency && (
+                        <View style={[styles.newBadge, { top: 32, backgroundColor: colors.emergency }]}>
+                            <Text style={[styles.emergencyText, { color: colors.accentText }]}>Новое</Text>
+                        </View>
+                    )}
+
+                    {!item.is_seen && !item.is_emergency && (
+                        <View style={[styles.newBadge, { backgroundColor: colors.emergency }]}>
+                            <Text style={[styles.emergencyText, { color: colors.accentText }]}>Новое</Text>
+                        </View>
+                    )} */}
                     
                     <View style={styles.details}>
                         <MaterialIcons 
@@ -186,8 +208,25 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
         );
     }
 
-    return (
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.primary }]}>
+return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.primary }]}>
+        <View style={styles.container}>
+            {isRestrictedView && (
+                <View style={[
+                    styles.restrictedBanner, 
+                    { backgroundColor: colors.accent + '20' }
+                ]}>
+                    <MaterialIcons 
+                        name="visibility-off" 
+                        size={20} 
+                        color={colors.text} 
+                    />
+                    <Text style={[styles.restrictedText, { color: colors.text }]}>
+                        Вы видите только свои события
+                    </Text>
+                </View>
+            )}
+            
             <Text style={[styles.dateTitle, { color: colors.text }]}>
             {safeDate ? format(safeDate, 'PPP', { locale: ru }) : ''}
             </Text>
@@ -209,9 +248,10 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                         </Text>
                     </View>
                 }
+                style={styles.list}
             />
 
-            <View style = {styles.buttonContainer}>
+            <View style={styles.buttonContainer}>
                 <MainButton
                     title="Добавить событие"
                     onPress={() => navigation.navigate('AddEvent', { 
@@ -219,20 +259,38 @@ const renderItem = useCallback(({ item }: { item: CalendarEvent }) => {
                         selectedDate: safeDate.toISOString() 
                     })}
                     icon="add"
-                    style={{ backgroundColor: colors.accent, marginTop: 16 }}
+                    style={{ 
+                        backgroundColor: user?.isGuest ? colors.secondary : colors.accent,
+                        opacity: user?.isGuest ? 0.6 : 1,
+                    }}
+                    textStyle={{ 
+                        color: user?.isGuest ? colors.secondaryText : colors.accentText 
+                    }}
+                    disabled={user?.isGuest}
                 />
             </View>
-        </SafeAreaView>
-    );
+        </View>
+    </SafeAreaView>
+);
 };
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+    },
     container: {
         flex: 1,
         padding: 20,
     },
+    list: {
+        flex: 1,
+        marginBottom: 60,
+    },
     buttonContainer: {
-        marginBottom: -42
+        position: 'absolute',
+        bottom: 0,
+        left: 20,
+        right: 20,
     },
     dateTitle: {
         fontSize: 24,
@@ -304,7 +362,6 @@ const styles = StyleSheet.create({
     emergencyText: {
         fontSize: 12,
         fontWeight: '500',
-        marginLeft: 4,
     },
     listContent: {
         paddingBottom: 20,
@@ -325,13 +382,25 @@ const styles = StyleSheet.create({
         marginTop: 16,
         textAlign: 'center',
     },
-    eventIcon: {
-        marginRight: 12,
-    },
-    eventHeader: {
+    restrictedBanner: {
         flexDirection: 'row',
         alignItems: 'center',
-    }
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    restrictedText: {
+        marginLeft: 8,
+        fontSize: 14,
+    },
+    newBadge: {
+        position: 'absolute',
+        right: 0,
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
 });
 
 export default EventListScreen;
